@@ -12,22 +12,22 @@ extern const Gradient gradient_full;
 extern const Gradient gradient_min;
 
 enum colors {
-	TGE_BLACK = 0,
-	TGE_RED,
-	TGE_GREEN,
-	TGE_YELLOW,
-	TGE_BLUE,
-	TGE_PURPLE,
-	TGE_CYAN,
-	TGE_WHITE,
-	TGE_BLACK_BKG,
-	TGE_RED_BKG,
-	TGE_GREEN_BKG,
-	TGE_YELLOW_BKG,
-	TGE_BLUE_BKG,
-	TGE_PURPLE_BKG,
-	TGE_CYAN_BKG,
-	TGE_WHITE_BKG,
+	TGE_BLACK = 0x00,
+	TGE_RED = 0x01,
+	TGE_GREEN = 0x02,
+	TGE_YELLOW = 0x03,
+	TGE_BLUE = 0x04,
+	TGE_PURPLE = 0x05,
+	TGE_CYAN = 0x06,
+	TGE_WHITE = 0x07,
+	TGE_BLACK_BKG = 0x00,
+	TGE_RED_BKG = 0x10,
+	TGE_GREEN_BKG = 0x20,
+	TGE_YELLOW_BKG = 0x30,
+	TGE_BLUE_BKG = 0x40,
+	TGE_PURPLE_BKG = 0x50,
+	TGE_CYAN_BKG = 0x60,
+	TGE_WHITE_BKG = 0x70,
 };
 
 enum draw_modes {
@@ -35,16 +35,10 @@ enum draw_modes {
 	TGE_FILL = 1,
 };
 
-enum primitives {
-	TGE_POINTS = 1,
-};
-
 TGE *tge_init(unsigned width, unsigned height, const Gradient *gradient);
 void tge_delete(TGE *tge);
 void tge_flush(TGE *tge);
-void tge_begin(TGE *tge, unsigned primitive);
-void tge_end(TGE *tge);
-void tge_draw_mode(TGE *tge, unsigned draw_mode);
-void tge_vertex(TGE *tge, unsigned x, unsigned y, ubyte intensity, ubyte color);
+void tge_point(TGE *tge, int x, int y, ubyte i, ubyte color);
+void tge_line(TGE *tge, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, ubyte color);
 
 #endif
