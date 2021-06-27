@@ -1,4 +1,5 @@
 #include "termgl.h"
+#include "termgl_intern.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -9,14 +10,6 @@ typedef struct Pixel {
 	char v_char;
 	ubyte color;
 } Pixel;
-
-typedef struct TGL {
-	unsigned width;
-	unsigned height;
-	unsigned frame_size;
-	Pixel *frame_buffer;
-	const Gradient *gradient;
-} TGL;
 
 typedef struct Gradient {
 	unsigned length;
@@ -33,8 +26,6 @@ typedef struct Gradient {
 	} while (0)
 
 #define INTENSITY_TO_CHAR(tgl, intensity) tgl->gradient->grad[(tgl->gradient->length * intensity) / 256u]
-
-#define SWAP(a, b) do {TYPEOF(a) temp = a; a = b; b = temp;} while(0)
 
 const char grad_full_chars[] = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 const Gradient gradient_full = {
@@ -70,14 +61,22 @@ const char *color_codes_bkg[] = {
 	[TGL_WHITE_BKG >> 4] =  "\033[47m",
 };
 
-inline void i_tgl_clear_frame_buffer(TGL *tgl)
+inline void itgl_clip(TGL *tgl, int *x, int *y)
+{
+	*x = MAX(MIN(tgl->max_x, *x), 0);
+	*y = MAX(MIN(tgl->max_y, *y), 0);
+}
+
+void tgl_clear(TGL *tgl, const ubyte buffers)
 {
 	unsigned i;
-	for (i = 0; i < tgl->frame_size; i++) {
-		*(&tgl->frame_buffer[i]) = (Pixel) {
-			.v_char = ' ',
-			.color = 0x00
-		};
+	if (buffers & TGL_FRAME_BUFFER) {
+		for (i = 0; i < tgl->frame_size; i++) {
+			*(&tgl->frame_buffer[i]) = (Pixel) {
+				.v_char = ' ',
+				.color = 0x00
+			};
+		}
 	}
 }
 
@@ -87,11 +86,13 @@ TGL *tgl_init(const unsigned width, const unsigned height, const Gradient *gradi
 	*tgl = (TGL) {
 		.width = width,
 		.height = height,
+		.max_x = width - 1,
+		.max_y = height - 1,
 		.frame_size = width * height,
 		.frame_buffer = malloc(sizeof(Pixel) * width * height),
 		.gradient = gradient,
 	};
-	i_tgl_clear_frame_buffer(tgl);
+	tgl_clear(tgl, TGL_FRAME_BUFFER);
 	return tgl;
 }
 
@@ -101,6 +102,7 @@ void tgl_flush(TGL *tgl)
 	ubyte color = 0xFF;
 	unsigned row, col;
 	Pixel *pixel = tgl->frame_buffer;
+	bool double_chars = tgl->settings & TGL_DOUBLE_CHARS;
 
 	for (row = 0; row < tgl->height; row++) {
 		for (col = 0; col < tgl->width; col++) {
@@ -110,22 +112,26 @@ void tgl_flush(TGL *tgl)
 				fputs(color_codes_bkg[color >> 4], stdout);
 			}
 			putchar(pixel->v_char);
+			if (double_chars)
+				putchar(pixel->v_char);
 			pixel++;
 		}
 		putchar('\n');
 	}
 	fflush(stdout);
-	i_tgl_clear_frame_buffer(tgl);
 }
 
 void tgl_point(TGL *tgl, int x, int y, ubyte i, ubyte color)
 {
+	itgl_clip(tgl, &x, &y);
 	SET_PIXEL(tgl, x, y, INTENSITY_TO_CHAR(tgl, i), color);
 }
 
 //Bresenham's line algorithm
 void tgl_line(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, const ubyte color)
 {
+	itgl_clip(tgl, &x0, &y0);
+	itgl_clip(tgl, &x1, &y1);
 	if (abs(y1 - y0) < abs(x1 - x0)) {
 		if (x0 > x1) {
 			SWAP(x1, x0);
@@ -207,6 +213,9 @@ void itgl_horiz_line(TGL *tgl, int x0, ubyte i0, int x1, ubyte i1, int y, const 
 //adapted from: https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h
 void tgl_triangle_fill(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, int x2, int y2, int i2, const ubyte color)
 {
+	itgl_clip(tgl, &x0, &y0);
+	itgl_clip(tgl, &x1, &y1);
+	itgl_clip(tgl, &x2, &y2);
 	if (y1 < y0) {
 		SWAP(x1, x0);
 		SWAP(y1, y0);
@@ -420,7 +429,16 @@ LBL_NEXT4:
 		if (y > y2)
 			return;
 	}
+}
 
+void tgl_enable(TGL *tgl, ubyte settings)
+{
+	tgl->settings |= settings;
+}
+
+void tgl_disable(TGL *tgl, ubyte settings)
+{
+	tgl->settings &= ~settings;
 }
 
 void tgl_delete(TGL *tgl)
