@@ -6,22 +6,51 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+typedef struct TGLTransform {
+	TGLMat rotate;
+	TGLMat scale;
+	TGLMat translate;
+	TGLMat result;
+} TGLTransform;
+
 typedef struct TGL3D {
 	ubyte settings;
-	float width;
-	float height;
+	float aspect_ratio;
 	float half_width;
 	float half_height;
-	TGLMat rot_mat;
-	TGLMat scale_mat;
-	TGLMat trans_mat;
-	TGLMat proj_mat;
-	TGLMat mat;
+	TGLTransform transform;
+	TGLMat projection;
+	TGLMat result;
 } TGL3D;
 
-#define TGL_FACE_BIT 0x01
+#define TGL_CULL_BIT 0x01
+#define TGL_CULL_BIT_OFFSET 0
+
+#define TGL_CULL_FACE_BIT 0x01
+#define TGL_WINDING_BIT 0x02
 
 #define MAP_COORD(half, val) ((val * half) + half)
+
+#define ROTATION_MATRIX(x, y, z) {\
+		{cosf(z) * cosf(y), -sinf(z) * cosf(x) + cosf(z) * sinf(y) * sinf(x), sinf(z) * sinf(x) + cosf(z) * sinf(y) * cosf(x), 0.f},\
+		{sinf(z) * cosf(y), cosf(z) * cosf(x) + sinf(z) * sinf(y) * sinf(x), -cosf(z) * sinf(x) + sinf(z) * sinf(y) * cosf(x), 0.f},\
+		{-sinf(y), cosf(y) * sinf(x), cosf(y) * cosf(x), 0.f},\
+		{0.f, 0.f, 0.f, 1.f},\
+	}
+
+#define SCALE_MATRIX(x, y, z) {\
+		{x,   0.f, 0.f, 0.f},\
+		{0.f, y,   0.f, 0.f},\
+		{0.f, 0.f, z,   0.f},\
+		{0.f, 0.f, 0.f, 1.f},\
+	}
+
+#define TRANSLATE_MATRIX(x, y, z) {\
+		{1.f, 0.f, 0.f, x},\
+		{0.f, 1.f, 0.f, y},\
+		{0.f, 0.f, 1.f, z},\
+		{0.f, 0.f, 0.f, 1.f},\
+	}
 
 __attribute__((const))
 float dot3(const TGLVec3 vec1, const TGLVec3 vec2)
@@ -30,9 +59,9 @@ float dot3(const TGLVec3 vec1, const TGLVec3 vec2)
 }
 
 __attribute__((const))
-float dot4(const TGLVec3 vec1, const TGLVec3 vec2)
+float dot43(const float vec1[4], const TGLVec3 vec2)
 {
-	return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2] + vec1[3] * vec2[3];
+	return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2] + vec1[3];
 }
 
 void sub3(const TGLVec3 vec1, const TGLVec3 vec2, TGLVec3 res)
@@ -49,15 +78,15 @@ void cross(const TGLVec3 vec1, const TGLVec3 vec2, TGLVec3 result)
 	result[2] = vec1[0] * vec2[1] - vec1[1] * vec2[0];
 }
 
-void mulmatvec(TGLMat mat, const float vec[4], float res[4])
+void mulmatvec(TGLMat mat, const TGLVec3 vec, TGLVec3 res)
 {
-	res[0] = dot4(mat[0], vec);
-	res[1] = dot4(mat[1], vec);
-	res[2] = dot4(mat[2], vec);
-	res[3] = dot4(mat[3], vec);
+	res[0] = dot43(mat[0], vec);
+	res[1] = dot43(mat[1], vec);
+	res[2] = dot43(mat[2], vec);
 
-	if (res[3] != 0.f) {
-		float w = 1.f / res[3];
+	float w = dot43(mat[3], vec);
+	if (w != 0.f) {
+		w = 1.f / w;
 		res[0] *= w;
 		res[1] *= w;
 		res[2] *= w;
@@ -83,10 +112,9 @@ void tgl3d_init(TGL *tgl)
 {
 	TGL3D *tgl3d = malloc(sizeof(TGL3D));
 
-	tgl3d->width = tgl->width;
-	tgl3d->height = tgl->height;
-	tgl3d->half_width = tgl3d->width / 2.f;
-	tgl3d->half_height = tgl3d->height / 2.f;
+	tgl3d->aspect_ratio = tgl->height / (float)tgl->width;
+	tgl3d->half_width = tgl->width / 2.f;
+	tgl3d->half_height = tgl->height / 2.f;
 
 	tgl->tgl3d = tgl3d;
 }
@@ -96,78 +124,99 @@ void tgl3d_camera(TGL *tgl, float fov, float near, float far)
 	TGL3D *tgl3d = tgl->tgl3d;
 	float s = 1.f / tanf(fov / 2.f);
 	float a = far / (far - near);
-	TGLMat proj_mat = {
-		{s * tgl3d->height / tgl3d->width, 0.f, 0.f, 0.f},
+	TGLMat projection = {
+		{s * tgl3d->aspect_ratio, 0.f, 0.f, 0.f},
 		{0.f, s,   0.f,     0.f},
 		{0.f, 0.f, a,       1.f},
 		{0.f, 0.f, -a * near, 0.f},
 	};
-	memcpy(tgl->tgl3d->proj_mat, proj_mat, sizeof(TGLMat));
+	memcpy(tgl->tgl3d->projection, projection, sizeof(TGLMat));
 }
 
-void tgl3d_rotate(TGL *tgl, float x, float y, float z)
+void tgl3d_transform_rotate(TGLTransform *transform, float x, float y, float z)
 {
-	TGLMat rot_mat = ROTATION_MATRIX(x, y, z);
-	memcpy(tgl->tgl3d->rot_mat, rot_mat, sizeof(TGLMat));
+	TGLMat rotate = ROTATION_MATRIX(x, y, z);
+	memcpy(transform->rotate, rotate, sizeof(TGLMat));
 }
 
-void tgl3d_scale(TGL *tgl, float x, float y, float z)
+void tgl3d_transform_scale(TGLTransform *transform, float x, float y, float z)
 {
-	TGLMat scale_mat = SCALE_MATRIX(x, y, z);
-	memcpy(tgl->tgl3d->scale_mat, scale_mat, sizeof(TGLMat));
+	TGLMat scale = SCALE_MATRIX(x, y, z);
+	memcpy(transform->scale, scale, sizeof(TGLMat));
 }
 
-void tgl3d_translate(TGL *tgl, float x, float y, float z)
+void tgl3d_transform_translate(TGLTransform *transform, float x, float y, float z)
 {
-	TGLMat trans_mat = TRANSLATE_MATRIX(x, y, z);
-	memcpy(tgl->tgl3d->trans_mat, trans_mat, sizeof(TGLMat));
+	TGLMat translate = TRANSLATE_MATRIX(x, y, z);
+	memcpy(transform->translate, translate, sizeof(TGLMat));
 }
 
-void tgl3d_calculate_matrix(TGL *tgl)
+void tgl3d_transform_update(TGLTransform *transform)
 {
-	TGL3D *tgl3d = tgl->tgl3d;
-	TGLMat res;
-	//mulmat(tgl3d->rot_mat, tgl3d->scale_mat, tgl3d->mat);
-	//mulmat(tgl3d->mat, tgl3d->trans_mat, res);
-	//memcpy(tgl3d->mat, res, sizeof(TGLMat));
-	//mulmat(res, tgl3d->proj_mat, tgl3d->mat);
-	mulmat(tgl3d->proj_mat, tgl3d->trans_mat, tgl3d->mat);
-	mulmat(tgl3d->mat, tgl3d->scale_mat, res);
-	mulmat(res, tgl3d->rot_mat, tgl3d->mat);
+	TGLMat temp;
+	mulmat(transform->translate, transform->scale, temp);
+	mulmat(temp, transform->rotate, transform->result);
 }
 
-void tgl3d_triangle(TGL *tgl, TGLVec3 points[3], ubyte intensity[3], const ubyte color)
+void tgl3d_projection_update(TGL *tgl)
 {
 	TGL3D *tgl3d = tgl->tgl3d;
-	float p[3][4];
+	mulmat(tgl3d->projection, tgl3d->transform.result, tgl3d->result);
+}
 
-	mulmatvec(tgl3d->mat, (float[4]){points[0][0], points[0][1], points[0][2], 1.f}, p[0]);
-	mulmatvec(tgl3d->mat, (float[4]){points[1][0], points[1][1], points[1][2], 1.f}, p[1]);
-	mulmatvec(tgl3d->mat, (float[4]){points[2][0], points[2][1], points[2][2], 1.f}, p[2]);
+void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3])
+{
+	mulmatvec(transform->result, in[0], out[0]);
+	mulmatvec(transform->result, in[1], out[1]);
+	mulmatvec(transform->result, in[2], out[2]);
+}
+
+void tgl3d_shader(TGL *tgl, TGLVec3 vertices_in[3], ubyte intensity_in[3], ubyte color, void (*intermediate_shader)(TGLVec3[3], TGLVec3[3], ubyte[3], ubyte[3]))
+{
+	TGL3D *tgl3d = tgl->tgl3d;
+
+	// VERTEX SHADER
+	TGLVec3 vertices_out[3];
+	mulmatvec(tgl3d->result, vertices_in[0], vertices_out[0]);
+	mulmatvec(tgl3d->result, vertices_in[1], vertices_out[1]);
+	mulmatvec(tgl3d->result, vertices_in[2], vertices_out[2]);
 
 	if (tgl->settings & TGL_CULL_FACE) {
 		TGLVec3 ab, ac, cp;
-		sub3(p[1], p[0], ab);
-		sub3(p[2], p[0], ac);
+		sub3(vertices_out[1], vertices_out[0], ab);
+		sub3(vertices_out[2], vertices_out[0], ac);
 		cross(ab, ac, cp);
-		if ((bool)signbit(cp[2]) == (bool)(tgl3d->settings & TGL_FACE_BIT))
+		if (XNOR(tgl3d->settings & TGL_CULL_BIT, signbit(cp[2])))
 			return;
 	}
 
+	//INTERMEDIATE SHADER
+	ubyte intensity_out[3];
+	if (intermediate_shader)
+		intermediate_shader(vertices_in, vertices_out, intensity_in, intensity_out);
+	else
+		memcpy(intensity_out, intensity_in, sizeof(ubyte) * 3);
+
+	//FRAGMENT SHADER
 	tgl_triangle(tgl,
-		MAP_COORD(tgl3d->half_width, p[0][0]),
-		MAP_COORD(tgl3d->half_height, p[0][1]),
-		intensity[0] / p[0][2],
-		MAP_COORD(tgl3d->half_width, p[1][0]),
-		MAP_COORD(tgl3d->half_height, p[1][1]),
-		intensity[1] / p[1][2],
-		MAP_COORD(tgl3d->half_width, p[2][0]),
-		MAP_COORD(tgl3d->half_height, p[2][1]),
-		intensity[2] / p[2][2],
+		MAP_COORD(tgl3d->half_width, vertices_out[0][0]),
+		MAP_COORD(tgl3d->half_height, vertices_out[0][1]),
+		intensity_out[0],
+		MAP_COORD(tgl3d->half_width, vertices_out[1][0]),
+		MAP_COORD(tgl3d->half_height, vertices_out[1][1]),
+		intensity_out[1],
+		MAP_COORD(tgl3d->half_width, vertices_out[2][0]),
+		MAP_COORD(tgl3d->half_height, vertices_out[2][1]),
+		intensity_out[2],
 		color);
 }
 
 void tgl3d_cull_face(TGL *tgl, ubyte settings)
 {
-	tgl->tgl3d->settings = (tgl->tgl3d->settings & ~TGL_FACE_BIT) | settings;
+	tgl->tgl3d->settings = (tgl->tgl3d->settings & ~TGL_CULL_BIT) | XOR(settings & TGL_CULL_FACE_BIT, settings & TGL_WINDING_BIT);
+}
+
+TGLTransform *tgl3d_get_transform(TGL *tgl)
+{
+	return &tgl->tgl3d->transform;
 }

@@ -18,5 +18,7 @@ typedef struct TGL {
 #define SWAP(a, b) do {TYPEOF(a) temp = a; a = b; b = temp;} while(0)
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
+#define XOR(a, b) (((bool)(a))!=((bool)(b)))
+#define XNOR(a, b) (((bool)(a))==((bool)(b)))
 
 #endif

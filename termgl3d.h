@@ -5,41 +5,29 @@
 
 typedef float TGLMat[4][4];
 typedef float TGLVec3[3];
+typedef struct TGLTransform TGLTransform;
 
 #define TGL_CULL_FACE 0x01
 
-#define TGL_BACK 0x00
+#define TGL_BACK  0x00
 #define TGL_FRONT 0x01
 
-#define ROTATION_MATRIX(x, y, z) {\
-		{cosf(z) * cosf(y), -sinf(z) * cosf(x) + cosf(z) * sinf(y) * sinf(x), sinf(z) * sinf(x) + cosf(z) * sinf(y) * cosf(x), 0.f},\
-		{sinf(z) * cosf(y), cosf(z) * cosf(x) + sinf(z) * sinf(y) * sinf(x), -cosf(z) * sinf(x) + sinf(z) * sinf(y) * cosf(x), 0.f},\
-		{-sinf(y), cosf(y) * sinf(x), cosf(y) * cosf(x), 0.f},\
-		{0.f, 0.f, 0.f, 1.f},\
-	}
+#define TGL_CW  0x00
+#define TGL_CCW 0x02
 
-#define SCALE_MATRIX(x, y, z) {\
-		{x,   0.f, 0.f, 0.f},\
-		{0.f, y,   0.f, 0.f},\
-		{0.f, 0.f, z,   0.f},\
-		{0.f, 0.f, 0.f, 1.f},\
-	}
-
-#define TRANSLATE_MATRIX(x, y, z) {\
-		{1.f, 0.f, 0.f, x},\
-		{0.f, 1.f, 0.f, y},\
-		{0.f, 0.f, 1.f, z},\
-		{0.f, 0.f, 0.f, 1.f},\
-	}
+void tgl3d_transform_rotate(TGLTransform *transform, float x, float y, float z);
+void tgl3d_transform_scale(TGLTransform *transform, float x, float y, float z);
+void tgl3d_transform_translate(TGLTransform *transform, float x, float y, float z);
+void tgl3d_transform_update(TGLTransform *transform);
+void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3]);
 
 void tgl3d_init(TGL *tgl);
 void tgl3d_camera(TGL *tgl, float fov, float near, float far);
-void tgl3d_rotate(TGL *tgl, float x, float y, float z);
-void tgl3d_scale(TGL *tgl, float x, float y, float z);
-void tgl3d_translate(TGL *tgl, float x, float y, float z);
-void tgl3d_calculate_matrix(TGL *tgl);
-void tgl3d_point(TGL *tgl, float x, float y, float z, ubyte i, ubyte color);
-void tgl3d_triangle(TGL *tgl, TGLVec3 points[3], ubyte intensity[3], const ubyte color);
+TGLTransform *tgl3d_get_transform(TGL *tgl);
+void tgl3d_projection_update(TGL *tgl);
+
 void tgl3d_cull_face(TGL *tgl, ubyte settings);
+
+void tgl3d_shader(TGL *tgl, TGLVec3 in[3], ubyte intensity_in[3], ubyte color, void (*intermediate_shader)(TGLVec3[3], TGLVec3[3], ubyte[3], ubyte[3]));
 
 #endif
