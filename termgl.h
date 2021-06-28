@@ -31,7 +31,7 @@ enum colors {
 	TGL_WHITE_BKG = 0x70,
 };
 
-#define TGL_FRAME_BUFFER   0x01
+#define TGL_FRAME_BUFFER 0x01
 
 #define TGL_DOUBLE_CHARS 0x80
 

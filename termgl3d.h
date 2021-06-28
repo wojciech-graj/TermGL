@@ -3,9 +3,16 @@
 
 #include "termgl.h"
 
+#include <stdbool.h>
+
 typedef float TGLMat[4][4];
 typedef float TGLVec3[3];
 typedef struct TGLTransform TGLTransform;
+
+typedef struct TGLTriangle {
+	TGLVec3 vertices[3];
+	ubyte intensity[3];
+} TGLTriangle;
 
 #define TGL_CULL_FACE 0x01
 
@@ -28,6 +35,6 @@ void tgl3d_projection_update(TGL *tgl);
 
 void tgl3d_cull_face(TGL *tgl, ubyte settings);
 
-void tgl3d_shader(TGL *tgl, TGLVec3 in[3], ubyte intensity_in[3], ubyte color, void (*intermediate_shader)(TGLVec3[3], TGLVec3[3], ubyte[3], ubyte[3]));
+void tgl3d_shader(TGL *tgl, TGLTriangle *in, ubyte color, bool fill, void (*intermediate_shader)(TGLTriangle*, TGLTriangle*));
 
 #endif

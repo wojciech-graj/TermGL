@@ -18,13 +18,13 @@ typedef struct TGL3D {
 	float aspect_ratio;
 	float half_width;
 	float half_height;
+
 	TGLTransform transform;
 	TGLMat projection;
 	TGLMat result;
 } TGL3D;
 
 #define TGL_CULL_BIT 0x01
-#define TGL_CULL_BIT_OFFSET 0
 
 #define TGL_CULL_FACE_BIT 0x01
 #define TGL_WINDING_BIT 0x02
@@ -51,6 +51,36 @@ typedef struct TGL3D {
 		{0.f, 0.f, 1.f, z},\
 		{0.f, 0.f, 0.f, 1.f},\
 	}
+
+enum /*clip planes*/ {
+	CLIP_NEAR = 0,
+	CLIP_FAR,
+	CLIP_LEFT,
+	CLIP_RIGHT,
+	CLIP_TOP,
+	CLIP_BOTTOM,
+};
+
+const TGLVec3 clip_plane_normals[6] = {
+	[CLIP_NEAR] = {0.f, 0.f, -1.f},
+	[CLIP_FAR] = {0.f, 0.f, 1.f},
+	[CLIP_LEFT] = {1.f, 0.f, 0.f},
+	[CLIP_RIGHT] = {-1.f, 0.f, 0.f},
+	[CLIP_BOTTOM] = {0.f, 1.f, 0.f},
+	[CLIP_TOP] = {0.f, -1.f, 0.f},
+};
+
+__attribute__((const))
+float sqr(const float val)
+{
+	return val * val;
+}
+
+__attribute__((const))
+float magsqr3(const TGLVec3 vec)
+{
+	return sqr(vec[0]) + sqr(vec[1]) + sqr(vec[2]);
+}
 
 __attribute__((const))
 float dot3(const TGLVec3 vec1, const TGLVec3 vec2)
@@ -93,6 +123,20 @@ void mulmatvec(TGLMat mat, const TGLVec3 vec, TGLVec3 res)
 	}
 }
 
+void add3v(const TGLVec3 vec1, const TGLVec3 vec2, TGLVec3 result)
+{
+	result[0] = vec1[0] + vec2[0];
+	result[1] = vec1[1] + vec2[1];
+	result[2] = vec1[2] + vec2[2];
+}
+
+void mul3s(const TGLVec3 vec, const float mul, TGLVec3 result)
+{
+	result[0] = vec[0] * mul;
+	result[1] = vec[1] * mul;
+	result[2] = vec[2] * mul;
+}
+
 void mulmat(TGLMat mat1, TGLMat mat2, TGLMat res)
 {
 	unsigned c, d, k;
@@ -108,6 +152,11 @@ void mulmat(TGLMat mat1, TGLMat mat2, TGLMat res)
 
 }
 
+float distance_point_plane(const TGLVec3 normal, TGLVec3 point)
+{
+	return dot3(normal, point) + 1.f;
+}
+
 void tgl3d_init(TGL *tgl)
 {
 	TGL3D *tgl3d = malloc(sizeof(TGL3D));
@@ -121,14 +170,15 @@ void tgl3d_init(TGL *tgl)
 
 void tgl3d_camera(TGL *tgl, float fov, float near, float far)
 {
+	fov *= .5f;
 	TGL3D *tgl3d = tgl->tgl3d;
-	float s = 1.f / tanf(fov / 2.f);
-	float a = far / (far - near);
+	float s = 1.f / tanf(fov);
+	float a = 1.f / (far - near);
 	TGLMat projection = {
 		{s * tgl3d->aspect_ratio, 0.f, 0.f, 0.f},
-		{0.f, s,   0.f,     0.f},
-		{0.f, 0.f, a,       1.f},
-		{0.f, 0.f, -a * near, 0.f},
+		{0.f, s, 0.f, 0.f},
+		{0.f, 0.f, -(far + near) * a, 2.f * far * near * a},
+		{0.f, 0.f, 1.f, 0.f},
 	};
 	memcpy(tgl->tgl3d->projection, projection, sizeof(TGLMat));
 }
@@ -171,49 +221,142 @@ void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3
 	mulmatvec(transform->result, in[2], out[2]);
 }
 
-void tgl3d_shader(TGL *tgl, TGLVec3 vertices_in[3], ubyte intensity_in[3], ubyte color, void (*intermediate_shader)(TGLVec3[3], TGLVec3[3], ubyte[3], ubyte[3]))
+float line_intersect_plane(const TGLVec3 normal, TGLVec3 start, TGLVec3 end, TGLVec3 point)
+{
+	TGLVec3 line_vec;
+	sub3(end, start, line_vec);
+	float distance = -(dot3(normal, start) + 1.f) / dot3(normal, line_vec);
+	mul3s(line_vec, distance, point);
+	add3v(point, start, point);
+	return distance;
+}
+
+unsigned clip_triangle_plane(const TGLVec3 normal, TGLTriangle *in, TGLTriangle out[2])
+{
+	TGLVec3 di = {
+		distance_point_plane(normal, in->vertices[0]),
+		distance_point_plane(normal, in->vertices[1]),
+		distance_point_plane(normal, in->vertices[2])
+	};
+
+	unsigned n_inside = 0, n_outside = 0;
+	unsigned inside[3], outside[3];
+#pragma GCC unroll 3
+	for (unsigned i = 0; i < 3; i++) {
+		if (di[i] >= 0.f)
+			inside[n_inside++] = i;
+		else
+			outside[n_outside++] = i;
+	}
+
+	float d;
+
+	switch (n_inside) {
+	case 0:
+		return 0;
+	case 3:
+		memcpy(&out[0], in, sizeof(TGLTriangle));
+		return 1;
+	case 1:
+		memcpy(out[0].vertices[0], in->vertices[inside[0]], sizeof(TGLVec3));
+		out[0].intensity[0] = in->intensity[inside[0]];
+#pragma GCC unroll 2
+		for (unsigned i = 0; i < 2; i++) {
+			d = line_intersect_plane(normal, out[0].vertices[0], in->vertices[outside[i]], out[0].vertices[i + 1]);
+			out[0].intensity[i + 1] = out[0].intensity[0] * (1.f - d) + in->intensity[outside[i]] * (d);
+		}
+		return 1;
+	case 2: ;
+		memcpy(out[0].vertices[0], in->vertices[inside[0]], sizeof(TGLVec3));
+		memcpy(out[0].vertices[1], in->vertices[inside[1]], sizeof(TGLVec3));
+		d = line_intersect_plane(normal, out[0].vertices[0], in->vertices[outside[0]], out[0].vertices[2]);
+		out[0].intensity[0] = in->intensity[inside[0]];
+		out[0].intensity[1] = in->intensity[inside[1]];
+		out[0].intensity[2] = out[0].intensity[0] * (1.f - d) + in->intensity[outside[0]] * (d);
+
+		memcpy(out[1].vertices[0], in->vertices[inside[1]], sizeof(TGLVec3));
+		memcpy(out[1].vertices[1], out->vertices[2], sizeof(TGLVec3));
+		d = line_intersect_plane(normal, out[1].vertices[0], in->vertices[outside[0]], out[1].vertices[2]);
+		out[1].intensity[0] = in->intensity[inside[1]];
+		out[1].intensity[1] = out[0].intensity[2];
+		out[1].intensity[2] = out[1].intensity[0] * (1.f - d) + in->intensity[outside[0]] * (d);
+
+		return 2;
+	}
+	return 0;
+}
+
+void tgl3d_shader(TGL *tgl, TGLTriangle *in, ubyte color, bool fill, void (*intermediate_shader)(TGLTriangle*, TGLTriangle*))
 {
 	TGL3D *tgl3d = tgl->tgl3d;
 
 	// VERTEX SHADER
-	TGLVec3 vertices_out[3];
-	mulmatvec(tgl3d->result, vertices_in[0], vertices_out[0]);
-	mulmatvec(tgl3d->result, vertices_in[1], vertices_out[1]);
-	mulmatvec(tgl3d->result, vertices_in[2], vertices_out[2]);
+	TGLTriangle out;
+	mulmatvec(tgl3d->result, in->vertices[0], out.vertices[0]);
+	mulmatvec(tgl3d->result, in->vertices[1], out.vertices[1]);
+	mulmatvec(tgl3d->result, in->vertices[2], out.vertices[2]);
+	memcpy(out.intensity, in->intensity, sizeof(ubyte) * 3);
 
 	if (tgl->settings & TGL_CULL_FACE) {
 		TGLVec3 ab, ac, cp;
-		sub3(vertices_out[1], vertices_out[0], ab);
-		sub3(vertices_out[2], vertices_out[0], ac);
+		sub3(out.vertices[1], out.vertices[0], ab);
+		sub3(out.vertices[2], out.vertices[0], ac);
 		cross(ab, ac, cp);
 		if (XNOR(tgl3d->settings & TGL_CULL_BIT, signbit(cp[2])))
 			return;
 	}
 
-	//INTERMEDIATE SHADER
-	ubyte intensity_out[3];
-	if (intermediate_shader)
-		intermediate_shader(vertices_in, vertices_out, intensity_in, intensity_out);
-	else
-		memcpy(intensity_out, intensity_in, sizeof(ubyte) * 3);
+	TGLTriangle trig_buffer[127]; //the size of this buffer assumes a pathological case which is probably impossible
+	memcpy(&trig_buffer[0], &out, sizeof(TGLTriangle));
+	unsigned buffer_offset = 0;
+	unsigned n_cur_stage = 1;
+	unsigned p, i;
+	for (p = 0; p < 6; p++) {
+		unsigned n_next_stage = 0;
+		for (i = 0; i < n_cur_stage; i++)
+			n_next_stage += clip_triangle_plane(clip_plane_normals[p], &trig_buffer[i + buffer_offset], &trig_buffer[buffer_offset + n_cur_stage + n_next_stage]);
+		buffer_offset += n_cur_stage;
+		n_cur_stage = n_next_stage;
+	}
 
-	//FRAGMENT SHADER
-	tgl_triangle(tgl,
-		MAP_COORD(tgl3d->half_width, vertices_out[0][0]),
-		MAP_COORD(tgl3d->half_height, vertices_out[0][1]),
-		intensity_out[0],
-		MAP_COORD(tgl3d->half_width, vertices_out[1][0]),
-		MAP_COORD(tgl3d->half_height, vertices_out[1][1]),
-		intensity_out[1],
-		MAP_COORD(tgl3d->half_width, vertices_out[2][0]),
-		MAP_COORD(tgl3d->half_height, vertices_out[2][1]),
-		intensity_out[2],
-		color);
+	for (i = 0; i < n_cur_stage; i++) {
+		TGLTriangle *trig = &trig_buffer[i + buffer_offset];
+
+		//INTERMEDIATE SHADER
+		if (intermediate_shader)
+			intermediate_shader(in, trig);
+
+		//FRAGMENT SHADER
+		if (fill)
+			tgl_triangle_fill(tgl,
+				MAP_COORD(tgl3d->half_width, trig->vertices[0][0]),
+				MAP_COORD(tgl3d->half_height, trig->vertices[0][1]),
+				trig->intensity[0],
+				MAP_COORD(tgl3d->half_width, trig->vertices[1][0]),
+				MAP_COORD(tgl3d->half_height, trig->vertices[1][1]),
+				trig->intensity[1],
+				MAP_COORD(tgl3d->half_width, trig->vertices[2][0]),
+				MAP_COORD(tgl3d->half_height, trig->vertices[2][1]),
+				trig->intensity[2],
+				color);
+		else
+			tgl_triangle(tgl,
+				MAP_COORD(tgl3d->half_width, trig->vertices[0][0]),
+				MAP_COORD(tgl3d->half_height, trig->vertices[0][1]),
+				trig->intensity[0],
+				MAP_COORD(tgl3d->half_width, trig->vertices[1][0]),
+				MAP_COORD(tgl3d->half_height, trig->vertices[1][1]),
+				trig->intensity[1],
+				MAP_COORD(tgl3d->half_width, trig->vertices[2][0]),
+				MAP_COORD(tgl3d->half_height, trig->vertices[2][1]),
+				trig->intensity[2],
+				color);
+	}
 }
 
 void tgl3d_cull_face(TGL *tgl, ubyte settings)
 {
-	tgl->tgl3d->settings = (tgl->tgl3d->settings & ~TGL_CULL_BIT) | XOR(settings & TGL_CULL_FACE_BIT, settings & TGL_WINDING_BIT);
+	tgl->tgl3d->settings = (tgl->tgl3d->settings & ~TGL_CULL_BIT) | (XOR(settings & TGL_CULL_FACE_BIT, settings & TGL_WINDING_BIT) ? TGL_CULL_BIT : 0);
 }
 
 TGLTransform *tgl3d_get_transform(TGL *tgl)

@@ -3,12 +3,11 @@
 
 #include <time.h>
 
-void intermediate_shader(TGLVec3 vertices_in[3], TGLVec3 vertices_out[3], ubyte intensity_in[3], ubyte intensity_out[3])
+void intermediate_shader(TGLTriangle *in, TGLTriangle *out)
 {
-	(void)vertices_in;
-	intensity_out[0] = intensity_in[0] / vertices_out[0][2];
-	intensity_out[1] = intensity_in[1] / vertices_out[1][2];
-	intensity_out[2] = intensity_in[2] / vertices_out[2][2];
+	out->intensity[0] /= (-out->vertices[0][2] + 3.f);
+	out->intensity[1] /= (-out->vertices[1][2] + 3.f);
+	out->intensity[2] /= (-out->vertices[2][2] + 3.f);
 }
 
 int main(void)
@@ -20,36 +19,36 @@ int main(void)
 	tgl_enable(tgl, TGL_CULL_FACE);
 	tgl3d_cull_face(tgl, TGL_BACK | TGL_CW);
 
-	float trigs[12][3][3] = {
-		{{0.f, 0.f, 0.f}, {0.f, 1.f, 0.f}, {1.f, 1.f, 0.f}},
-		{{0.f, 0.f, 0.f}, {1.f, 1.f, 0.f}, {1.f, 0.f, 0.f}},
-		{{1.f, 0.f, 0.f}, {1.f, 1.f, 0.f}, {1.f, 1.f, 1.f}},
-		{{1.f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 0.f, 1.f}},
-		{{1.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {0.f, 1.f, 1.f}},
-		{{1.f, 0.f, 1.f}, {0.f, 1.f, 1.f}, {0.f, 0.f, 1.f}},
-		{{0.f, 0.f, 1.f}, {0.f, 1.f, 1.f}, {0.f, 1.f, 0.f}},
-		{{0.f, 0.f, 1.f}, {0.f, 1.f, 0.f}, {0.f, 0.f, 0.f}},
-		{{0.f, 1.f, 0.f}, {0.f, 1.f, 1.f}, {1.f, 1.f, 1.f}},
-		{{0.f, 1.f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 1.f, 0.f}},
-		{{1.f, 0.f, 1.f}, {0.f, 0.f, 1.f}, {0.f, 0.f, 0.f}},
-		{{1.f, 0.f, 1.f}, {0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}},
+	TGLTriangle trigs[12] = {
+		{{{0.f, 0.f, 0.f}, {0.f, 1.f, 0.f}, {1.f, 1.f, 0.f}},{255, 255, 255}},
+		{{{0.f, 0.f, 0.f}, {1.f, 1.f, 0.f}, {1.f, 0.f, 0.f}},{255, 255, 255}},
+		{{{1.f, 0.f, 0.f}, {1.f, 1.f, 0.f}, {1.f, 1.f, 1.f}},{255, 255, 255}},
+		{{{1.f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 0.f, 1.f}},{255, 255, 255}},
+		{{{1.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {0.f, 1.f, 1.f}},{255, 255, 255}},
+		{{{1.f, 0.f, 1.f}, {0.f, 1.f, 1.f}, {0.f, 0.f, 1.f}},{255, 255, 255}},
+		{{{0.f, 0.f, 1.f}, {0.f, 1.f, 1.f}, {0.f, 1.f, 0.f}},{255, 255, 255}},
+		{{{0.f, 0.f, 1.f}, {0.f, 1.f, 0.f}, {0.f, 0.f, 0.f}},{255, 255, 255}},
+		{{{0.f, 1.f, 0.f}, {0.f, 1.f, 1.f}, {1.f, 1.f, 1.f}},{255, 255, 255}},
+		{{{0.f, 1.f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 1.f, 0.f}},{255, 255, 255}},
+		{{{1.f, 0.f, 1.f}, {0.f, 0.f, 1.f}, {0.f, 0.f, 0.f}},{255, 255, 255}},
+		{{{1.f, 0.f, 1.f}, {0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}},{255, 255, 255}},
 	};
 
 	TGLTransform *t = tgl3d_get_transform(tgl);
-	tgl3d_transform_scale(t, 0.6f, 0.6f, 0.6f);
+	tgl3d_transform_scale(t, 0.8f, 0.8f, 0.8f);
 	tgl3d_transform_translate(t, 0.f, 0.f, 2.f);
 
-	tgl3d_camera(tgl, 1.57f, 1.f, 100.f);
+	tgl3d_camera(tgl, 1.57f, 1.f, 5.f);
 
 	float n = 0;
 	while (1) {
-		tgl3d_transform_rotate(t, n * .33f, n * .5f, n);
+		tgl3d_transform_rotate(t, n * 0.33f, n * 0.5f, n);
 		tgl3d_transform_update(t);
 		tgl3d_projection_update(tgl);
 
 		unsigned i;
 		for (i = 0; i < 12; i++) {
-			tgl3d_shader(tgl, trigs[i], (ubyte[3]){255, 255, 255}, TGL_WHITE, &intermediate_shader);
+			tgl3d_shader(tgl, &trigs[i], TGL_WHITE, true, &intermediate_shader);
 		}
 
 		tgl_flush(tgl);
