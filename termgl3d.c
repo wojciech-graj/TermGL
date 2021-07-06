@@ -286,7 +286,7 @@ unsigned clip_triangle_plane(const TGLVec3 normal, TGLTriangle *in, TGLTriangle 
 	return 0;
 }
 
-void tgl3d_shader(TGL *tgl, TGLTriangle *in, ubyte color, bool fill, void (*intermediate_shader)(TGLTriangle*, TGLTriangle*))
+void tgl3d_shader(TGL *tgl, TGLTriangle *in, ubyte color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle*, void*))
 {
 	TGL3D *tgl3d = tgl->tgl3d;
 
@@ -324,31 +324,37 @@ void tgl3d_shader(TGL *tgl, TGLTriangle *in, ubyte color, bool fill, void (*inte
 
 		//INTERMEDIATE SHADER
 		if (intermediate_shader)
-			intermediate_shader(in, trig);
+			intermediate_shader(trig, data);
 
 		//FRAGMENT SHADER
 		if (fill)
 			tgl_triangle_fill(tgl,
 				MAP_COORD(tgl3d->half_width, trig->vertices[0][0]),
 				MAP_COORD(tgl3d->half_height, trig->vertices[0][1]),
+				trig->vertices[0][2],
 				trig->intensity[0],
 				MAP_COORD(tgl3d->half_width, trig->vertices[1][0]),
 				MAP_COORD(tgl3d->half_height, trig->vertices[1][1]),
+				trig->vertices[1][2],
 				trig->intensity[1],
 				MAP_COORD(tgl3d->half_width, trig->vertices[2][0]),
 				MAP_COORD(tgl3d->half_height, trig->vertices[2][1]),
+				trig->vertices[2][2],
 				trig->intensity[2],
 				color);
 		else
 			tgl_triangle(tgl,
 				MAP_COORD(tgl3d->half_width, trig->vertices[0][0]),
 				MAP_COORD(tgl3d->half_height, trig->vertices[0][1]),
+				trig->vertices[0][2],
 				trig->intensity[0],
 				MAP_COORD(tgl3d->half_width, trig->vertices[1][0]),
 				MAP_COORD(tgl3d->half_height, trig->vertices[1][1]),
+				trig->vertices[1][2],
 				trig->intensity[1],
 				MAP_COORD(tgl3d->half_width, trig->vertices[2][0]),
 				MAP_COORD(tgl3d->half_height, trig->vertices[2][1]),
+				trig->vertices[2][2],
 				trig->intensity[2],
 				color);
 	}

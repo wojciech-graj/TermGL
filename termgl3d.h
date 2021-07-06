@@ -35,6 +35,6 @@ void tgl3d_projection_update(TGL *tgl);
 
 void tgl3d_cull_face(TGL *tgl, ubyte settings);
 
-void tgl3d_shader(TGL *tgl, TGLTriangle *in, ubyte color, bool fill, void (*intermediate_shader)(TGLTriangle*, TGLTriangle*));
+void tgl3d_shader(TGL *tgl, TGLTriangle *in, ubyte color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle*, void*));
 
 #endif

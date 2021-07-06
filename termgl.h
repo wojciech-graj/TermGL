@@ -32,16 +32,16 @@ enum colors {
 };
 
 #define TGL_FRAME_BUFFER 0x01
-
+#define TGL_Z_BUFFER 0x40
 #define TGL_DOUBLE_CHARS 0x80
 
 TGL *tgl_init(const unsigned width, const unsigned height, const Gradient *gradient);
 void tgl_delete(TGL *tgl);
 void tgl_flush(TGL *tgl);
-void tgl_point(TGL *tgl, int x, int y, ubyte i, ubyte color);
-void tgl_line(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, ubyte color);
-void tgl_triangle(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, int x2, int y2, int i2, ubyte color);
-void tgl_triangle_fill(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, int x2, int y2, int i2, ubyte color);
+void tgl_point(TGL *tgl, int x, int y, float z, ubyte i, ubyte color);
+void tgl_line(TGL *tgl, int x0, int y0, float z0, ubyte i0, int x1, int y1, float z1, ubyte i1, const ubyte color);
+void tgl_triangle(TGL *tgl, int x0, int y0, float z0, ubyte i0, int x1, int y1, float z1, ubyte i1, int x2, int y2, float z2, int i2, const ubyte color);
+void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, ubyte i0, int x1, int y1, float z1, ubyte i1, int x2, int y2, float z2, int i2, const ubyte color);
 void tgl_clear(TGL *tgl, ubyte buffers);
 void tgl_enable(TGL *tgl, ubyte settings);
 void tgl_disable(TGL *tgl, ubyte settings);

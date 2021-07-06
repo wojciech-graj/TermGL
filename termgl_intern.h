@@ -1,6 +1,8 @@
 #ifndef TERMGL_INTERN_H
 #define TERMGL_INTERN_H
 
+#include <stdbool.h>
+
 typedef struct Pixel Pixel;
 typedef struct TGL3D TGL3D;
 typedef struct TGL {
@@ -10,6 +12,8 @@ typedef struct TGL {
 	int max_y;
 	unsigned frame_size;
 	Pixel *frame_buffer;
+	float *z_buffer;
+	bool z_buffer_enabled;
 	ubyte settings;
 	const Gradient *gradient;
 	TGL3D *tgl3d;

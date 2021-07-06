@@ -13,16 +13,23 @@ typedef struct Pixel {
 
 typedef struct Gradient {
 	unsigned length;
-	unsigned divisor;
 	const char *grad;
 } Gradient;
 
-#define SET_PIXEL(tgl, x, y, v_char_, color_)\
+#define SET_PIXEL(tgl, x, y, z, v_char_, color_)\
 	do {\
-		*(&tgl->frame_buffer[y * tgl->width + x]) = (Pixel) {\
-			.v_char = v_char_,\
-			.color = color_,\
-		};\
+		if (!tgl->z_buffer_enabled) {\
+			*(&tgl->frame_buffer[y * tgl->width + x]) = (Pixel) {\
+				.v_char = v_char_,\
+				.color = color_,\
+			};\
+		} else if (z >= tgl->z_buffer[y * tgl->width + x]) {\
+			*(&tgl->frame_buffer[y * tgl->width + x]) = (Pixel) {\
+				.v_char = v_char_,\
+				.color = color_,\
+			};\
+			tgl->z_buffer[y * tgl->width + x] = z;\
+		}\
 	} while (0)
 
 #define INTENSITY_TO_CHAR(tgl, intensity) tgl->gradient->grad[(tgl->gradient->length * intensity) / 256u]
@@ -78,6 +85,9 @@ void tgl_clear(TGL *tgl, const ubyte buffers)
 			};
 		}
 	}
+	if (buffers & TGL_Z_BUFFER)
+		for (i = 0; i < tgl->frame_size; i++)
+			tgl->z_buffer[i] = -1.f;
 }
 
 TGL *tgl_init(const unsigned width, const unsigned height, const Gradient *gradient)
@@ -121,14 +131,14 @@ void tgl_flush(TGL *tgl)
 	fflush(stdout);
 }
 
-void tgl_point(TGL *tgl, int x, int y, ubyte i, ubyte color)
+void tgl_point(TGL *tgl, int x, int y, float z, ubyte i, ubyte color)
 {
 	itgl_clip(tgl, &x, &y);
-	SET_PIXEL(tgl, x, y, INTENSITY_TO_CHAR(tgl, i), color);
+	SET_PIXEL(tgl, x, y, z, INTENSITY_TO_CHAR(tgl, i), color);
 }
 
 //Bresenham's line algorithm
-void tgl_line(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, const ubyte color)
+void tgl_line(TGL *tgl, int x0, int y0, float z0, ubyte i0, int x1, int y1, float z1, ubyte i1, const ubyte color)
 {
 	itgl_clip(tgl, &x0, &y0);
 	itgl_clip(tgl, &x1, &y1);
@@ -151,7 +161,9 @@ void tgl_line(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, cons
 		int y = y0;
 		int x;
 		for (x = x0; x <= x1; x++) {
-			SET_PIXEL(tgl, x, y, INTENSITY_TO_CHAR(tgl, ((x - x0) * i1 + (x1 - x) * i0) / dx), color);
+			SET_PIXEL(tgl, x, y,
+				((x - x0) * z1 + (x1 - x) * z0) / dx,
+				INTENSITY_TO_CHAR(tgl, ((x - x0) * i1 + (x1 - x) * i0) / dx), color);
 			if (d > 0) {
 				y += yi;
 				d += 2 * (dy - dx);
@@ -178,7 +190,9 @@ void tgl_line(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, cons
 		int x = x0;
 		int y;
 		for (y = y0; y < y1; y++) {
-			SET_PIXEL(tgl, x, y, INTENSITY_TO_CHAR(tgl, ((y - y0) * i1 + (y1 - y) * i0) / dy), color);
+			SET_PIXEL(tgl, x, y,
+				((y - y0) * z1 + (y1 - y) * z0) / dx,
+				INTENSITY_TO_CHAR(tgl, ((y - y0) * i1 + (y1 - y) * i0) / dy), color);
 			if (d > 0) {
 				x += xi;
 				d += 2 * (dx - dy);
@@ -189,29 +203,31 @@ void tgl_line(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, cons
 	}
 }
 
-void tgl_triangle(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, int x2, int y2, int i2, const ubyte color)
+void tgl_triangle(TGL *tgl, int x0, int y0, float z0, ubyte i0, int x1, int y1, float z1, ubyte i1, int x2, int y2, float z2, int i2, const ubyte color)
 {
-	tgl_line(tgl, x0, y0, i0, x1, y1, i1, color);
-	tgl_line(tgl, x1, y1, i1, x2, y2, i2, color);
-	tgl_line(tgl, x2, y2, i2, x0, y0, i0, color);
+	tgl_line(tgl, x0, y0, z0, i0, x1, y1, z1, i1, color);
+	tgl_line(tgl, x1, y1, z1, i1, x2, y2, z2, i2, color);
+	tgl_line(tgl, x2, y2, z2, i2, x0, y0, z0, i0, color);
 }
 
-void itgl_horiz_line(TGL *tgl, int x0, ubyte i0, int x1, ubyte i1, int y, const ubyte color)
+void itgl_horiz_line(TGL *tgl, int x0, float z0, ubyte i0, int x1, float z1, ubyte i1, int y, const ubyte color)
 {
 	if (x0 == x1) {
-		SET_PIXEL(tgl, x0, y, INTENSITY_TO_CHAR(tgl, i0), color);
+		SET_PIXEL(tgl, x0, y, z0, INTENSITY_TO_CHAR(tgl, i0), color);
 	} else {
 		int dx = x1 - x0;
 		int x;
 		for (x = x0; x <= x1; x++)
-			SET_PIXEL(tgl, x, y, INTENSITY_TO_CHAR(tgl, ((x - x0) * i1 + (x1 - x) * i0) / dx), color);
+			SET_PIXEL(tgl, x, y,
+				((x - x0) * z1 + (x1 - x) * z0) / dx,
+				INTENSITY_TO_CHAR(tgl, ((x - x0) * i1 + (x1 - x) * i0) / dx), color);
 	}
 
 }
 
 //Solution based on Bresenham's line algorithm
 //adapted from: https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h
-void tgl_triangle_fill(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte i1, int x2, int y2, int i2, const ubyte color)
+void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, ubyte i0, int x1, int y1, float z1, ubyte i1, int x2, int y2, float z2, int i2, const ubyte color)
 {
 	itgl_clip(tgl, &x0, &y0);
 	itgl_clip(tgl, &x1, &y1);
@@ -219,16 +235,19 @@ void tgl_triangle_fill(TGL *tgl, int x0, int y0, ubyte i0, int x1, int y1, ubyte
 	if (y1 < y0) {
 		SWAP(x1, x0);
 		SWAP(y1, y0);
+		SWAP(z1, z0);
 		SWAP(i1, i0);
 	}
 	if (y2 < y0) {
 		SWAP(x2, x0);
 		SWAP(y2, y0);
+		SWAP(z2, z0);
 		SWAP(i2, i0);
 	}
 	if (y2 < y1) {
 		SWAP(x1, x2);
 		SWAP(y1, y2);
+		SWAP(z1, z2);
 		SWAP(i1, i2);
 	}
 
@@ -321,10 +340,13 @@ LBL_NEXT2:
 
 		int vi0 = ((y - y0) * i1 + (y1 - y) * i0) / (y1 - y0);
 		int vi1 = ((y - y0) * i2 + (y2 - y) * i0) / (y2 - y0);
+		float vz0 = ((y - y0) * z1 + (y1 - y) * z0) / (y1 - y0);
+		float vz1 = ((y - y0) * z1 + (y1 - y) * z0) / (y1 - y0);
+
 		if (t0x < t1x)
-			itgl_horiz_line(tgl, minx, vi0, maxx, vi1, y, color);
+			itgl_horiz_line(tgl, minx, vz0, vi0, maxx, vz1, vi1, y, color);
 		else
-			itgl_horiz_line(tgl, minx, vi1, maxx, vi0, y, color);
+			itgl_horiz_line(tgl, minx, vz1, vi1, maxx, vz0, vi0, y, color);
 
 
 		if (!changed0)
@@ -411,12 +433,15 @@ LBL_NEXT4:
 		if (y1 != y2) {
 			int vi0 = ((y - y0) * i2 + (y2 - y) * i0) / (y2 - y0);
 			int vi1 = ((y - y1) * i2 + (y2 - y) * i1) / (y2 - y1);
+			float vz0 = ((y - y0) * z2 + (y2 - y) * z0) / (y2 - y0);
+			float vz1 = ((y - y1) * z2 + (y2 - y) * z1) / (y2 - y1);
+
 			if (t1x < t0x)
-				itgl_horiz_line(tgl, minx, vi0, maxx, vi1, y, color);
+				itgl_horiz_line(tgl, minx, vz0, vi0, maxx, vz1, vi1, y, color);
 			else
-				itgl_horiz_line(tgl, minx, vi1, maxx, vi0, y, color);
+				itgl_horiz_line(tgl, minx, vz1, vi1, maxx, vz0, vi0, y, color);
 		} else {
-			itgl_horiz_line(tgl, minx, i1, maxx, i2, y, color);
+			itgl_horiz_line(tgl, minx, z1, i1, maxx, z2, i2, y, color);
 		}
 
 		if (!changed0)
@@ -434,15 +459,25 @@ LBL_NEXT4:
 void tgl_enable(TGL *tgl, ubyte settings)
 {
 	tgl->settings |= settings;
+	if (settings & TGL_Z_BUFFER) {
+		tgl->z_buffer_enabled = true;
+		tgl->z_buffer = malloc(sizeof(float) * tgl->frame_size);
+	}
 }
 
 void tgl_disable(TGL *tgl, ubyte settings)
 {
 	tgl->settings &= ~settings;
+	if (settings & TGL_Z_BUFFER) {
+		tgl->z_buffer_enabled = false;
+		free(tgl->z_buffer);
+		tgl->z_buffer = NULL;
+	}
 }
 
 void tgl_delete(TGL *tgl)
 {
 	free(tgl->frame_buffer);
+	free(tgl->z_buffer);
 	free(tgl);
 }

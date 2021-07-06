@@ -3,11 +3,12 @@
 
 #include <time.h>
 
-void intermediate_shader(TGLTriangle *in, TGLTriangle *out)
+void intermediate_shader(TGLTriangle *trig, void *data)
 {
-	out->intensity[0] /= (-out->vertices[0][2] + 3.f);
-	out->intensity[1] /= (-out->vertices[1][2] + 3.f);
-	out->intensity[2] /= (-out->vertices[2][2] + 3.f);
+	(void)data;
+	trig->intensity[0] /= (-trig->vertices[0][2] + 3.f);
+	trig->intensity[1] /= (-trig->vertices[1][2] + 3.f);
+	trig->intensity[2] /= (-trig->vertices[2][2] + 3.f);
 }
 
 int main(void)
@@ -18,6 +19,8 @@ int main(void)
 
 	tgl_enable(tgl, TGL_CULL_FACE);
 	tgl3d_cull_face(tgl, TGL_BACK | TGL_CW);
+
+	tgl_enable(tgl, TGL_Z_BUFFER);
 
 	TGLTriangle trigs[12] = {
 		{{{0.f, 0.f, 0.f}, {0.f, 1.f, 0.f}, {1.f, 1.f, 0.f}},{255, 255, 255}},
@@ -48,11 +51,11 @@ int main(void)
 
 		unsigned i;
 		for (i = 0; i < 12; i++) {
-			tgl3d_shader(tgl, &trigs[i], TGL_WHITE, true, &intermediate_shader);
+			tgl3d_shader(tgl, &trigs[i], TGL_WHITE, true, NULL, &intermediate_shader);
 		}
 
 		tgl_flush(tgl);
-		tgl_clear(tgl, TGL_FRAME_BUFFER);
+		tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_Z_BUFFER);
 
 		n += 0.1f;
 		usleep(150000);
