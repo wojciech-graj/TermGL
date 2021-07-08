@@ -1,6 +1,10 @@
 #ifndef TERMGL_INTERN_H
 #define TERMGL_INTERN_H
 
+/**
+ * Internal TermGL header. Not for external use.
+ */
+
 #include <stdbool.h>
 
 typedef struct Pixel Pixel;
@@ -19,10 +23,9 @@ typedef struct TGL {
 	TGL3D *tgl3d;
 } TGL;
 
-#define SWAP(a, b) do {TYPEOF(a) temp = a; a = b; b = temp;} while(0)
+#define SWAP(a, b) do {TGL_TYPEOF(a) temp = a; a = b; b = temp;} while(0)
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define XOR(a, b) (((bool)(a))!=((bool)(b)))
-#define XNOR(a, b) (((bool)(a))==((bool)(b)))
 
 #endif

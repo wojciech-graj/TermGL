@@ -11,23 +11,20 @@ typedef struct Pixel {
 	ubyte color;
 } Pixel;
 
-typedef struct Gradient {
-	unsigned length;
-	const char *grad;
-} Gradient;
+#define SET_PIXEL_RAW(tgl, x, y, v_char_, color_)\
+	do {\
+		*(&tgl->frame_buffer[y * tgl->width + x]) = (Pixel) {\
+			.v_char = v_char_,\
+			.color = color_,\
+		};\
+	} while (0)
 
 #define SET_PIXEL(tgl, x, y, z, v_char_, color_)\
 	do {\
 		if (!tgl->z_buffer_enabled) {\
-			*(&tgl->frame_buffer[y * tgl->width + x]) = (Pixel) {\
-				.v_char = v_char_,\
-				.color = color_,\
-			};\
+			SET_PIXEL_RAW(tgl, x, y, v_char_, color_);\
 		} else if (z >= tgl->z_buffer[y * tgl->width + x]) {\
-			*(&tgl->frame_buffer[y * tgl->width + x]) = (Pixel) {\
-				.v_char = v_char_,\
-				.color = color_,\
-			};\
+			SET_PIXEL_RAW(tgl, x, y, v_char_, color_);\
 			tgl->z_buffer[y * tgl->width + x] = z;\
 		}\
 	} while (0)
@@ -92,14 +89,14 @@ void tgl_clear(TGL *tgl, const ubyte buffers)
 
 TGL *tgl_init(const unsigned width, const unsigned height, const Gradient *gradient)
 {
-	TGL *tgl = malloc(sizeof(TGL));
+	TGL *tgl = TGL_MALLOC(sizeof(TGL));
 	*tgl = (TGL) {
 		.width = width,
 		.height = height,
 		.max_x = width - 1,
 		.max_y = height - 1,
 		.frame_size = width * height,
-		.frame_buffer = malloc(sizeof(Pixel) * width * height),
+		.frame_buffer = TGL_MALLOC(sizeof(Pixel) * width * height),
 		.gradient = gradient,
 	};
 	tgl_clear(tgl, TGL_FRAME_BUFFER);
@@ -108,7 +105,7 @@ TGL *tgl_init(const unsigned width, const unsigned height, const Gradient *gradi
 
 void tgl_flush(TGL *tgl)
 {
-	CLEAR_SCREEN;
+	TGL_CLEAR_SCREEN;
 	ubyte color = 0xFF;
 	unsigned row, col;
 	Pixel *pixel = tgl->frame_buffer;
@@ -129,6 +126,22 @@ void tgl_flush(TGL *tgl)
 		putchar('\n');
 	}
 	fflush(stdout);
+}
+
+void tgl_putchar(TGL *tgl, int x, int y, char c, ubyte color)
+{
+	itgl_clip(tgl, &x, &y);
+	SET_PIXEL_RAW(tgl, x, y, c, color);
+}
+
+void tgl_puts(TGL *tgl, int x, int y, char *str, ubyte color)
+{
+	itgl_clip(tgl, &x, &y);
+	char *c_ptr = str;
+	while (c_ptr) {
+		SET_PIXEL_RAW(tgl, x, y, *c_ptr, color);
+		c_ptr++;
+	}
 }
 
 void tgl_point(TGL *tgl, int x, int y, float z, ubyte i, ubyte color)
@@ -461,7 +474,7 @@ void tgl_enable(TGL *tgl, ubyte settings)
 	tgl->settings |= settings;
 	if (settings & TGL_Z_BUFFER) {
 		tgl->z_buffer_enabled = true;
-		tgl->z_buffer = malloc(sizeof(float) * tgl->frame_size);
+		tgl->z_buffer = TGL_MALLOC(sizeof(float) * tgl->frame_size);
 	}
 }
 
@@ -470,14 +483,15 @@ void tgl_disable(TGL *tgl, ubyte settings)
 	tgl->settings &= ~settings;
 	if (settings & TGL_Z_BUFFER) {
 		tgl->z_buffer_enabled = false;
-		free(tgl->z_buffer);
+		TGL_FREE(tgl->z_buffer);
 		tgl->z_buffer = NULL;
 	}
 }
 
 void tgl_delete(TGL *tgl)
 {
-	free(tgl->frame_buffer);
-	free(tgl->z_buffer);
-	free(tgl);
+	TGL_FREE(tgl->frame_buffer);
+	TGL_FREE(tgl->z_buffer);
+	TGL_FREE(tgl->tgl3d);
+	TGL_FREE(tgl);
 }
