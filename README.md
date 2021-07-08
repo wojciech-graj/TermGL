@@ -10,6 +10,8 @@ Written in C, created for terminals supporting ANSI escape codes.
 
 ## Gallery
 
+![LOGO](test/logo.gif)
+
 ![CANYON](test/canyon.gif)
 
 ![TEAPOT](test/teapot.gif)
