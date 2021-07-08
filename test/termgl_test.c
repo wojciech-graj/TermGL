@@ -59,51 +59,84 @@ uint32_t stl_load(FILE *file, TGLTriangle **triangles)
 
 int main(void)
 {
-	TGL *tgl = tgl_init(120, 120, &gradient_min);
+	// Select which scene to render. Either 0 or 1
+	unsigned render_obj = 1;
+
+	// Initialize TermGL
+	TGL *tgl = tgl_init(80, 60, &gradient_min);
 	tgl_enable(tgl, TGL_DOUBLE_CHARS);
 	tgl3d_init(tgl);
+	tgl_enable(tgl, TGL_CULL_FACE);
+	tgl3d_cull_face(tgl, TGL_BACK | TGL_CCW);
+	tgl_enable(tgl, TGL_Z_BUFFER);
+	tgl3d_camera(tgl, 1.57f, 0.1f, 5.f);
 
+	// Load triangles
 	TGLTriangle *trigs;
-	FILE *stl_file = fopen("utah_teapot.stl", "rb");
+	FILE *stl_file = fopen(render_obj ? "canyon2_2.stl" : "utah_teapot.stl", "rb");
 	assert(stl_file);
 	uint32_t n_trigs = stl_load(stl_file, &trigs);
 	fclose(stl_file);
 
-	tgl_enable(tgl, TGL_CULL_FACE);
-	tgl3d_cull_face(tgl, TGL_BACK | TGL_CCW);
+	// Edit camera transformations
+	TGLTransform *camera_t = tgl3d_get_transform(tgl);
+	tgl3d_transform_scale(camera_t, 1.0f, 1.0f, 1.0f);
+	tgl3d_transform_rotate(camera_t, 2.1f, 0.f, 0.f);
+	if (render_obj == 0) {
+		tgl3d_transform_translate(camera_t, 0.f, 0.f, 2.f);
+			tgl3d_transform_update(camera_t);
+	} else {
+		tgl3d_transform_translate(camera_t, 0.f, 3.f, 0.0f);
+	}
 
-	tgl_enable(tgl, TGL_Z_BUFFER);
-
-	TGLTransform *t = tgl3d_get_transform(tgl);
-	tgl3d_transform_scale(t, 0.1f, 0.1f, 0.1f);
-	tgl3d_transform_translate(t, 0.f, 0.f, 2.f);
-	tgl3d_transform_rotate(t, 2.1f, 0.f, 0.f);
-	tgl3d_transform_update(t);
-
-	tgl3d_camera(tgl, 1.57f, 1.f, 5.f);
-	tgl3d_projection_update(tgl);
-
-	TGLTransform trans;
-	tgl3d_transform_scale(&trans, 1.f, 1.f, 1.f);
-	tgl3d_transform_translate(&trans, 0.f, 0.f, 0.f);
+	// Create transformation matrices for object
+	TGLTransform obj_t;
+	if (render_obj == 0) {
+		tgl3d_transform_scale(&obj_t, 0.1f, 0.1f, 0.1f);
+		tgl3d_transform_translate(&obj_t, 0.f, 0.f, 0.f);
+	} else {
+		tgl3d_transform_scale(&obj_t, 0.02f, 0.02f, 0.02f);
+		tgl3d_transform_translate(&obj_t, -1.2f, -1.2f, 1.6f);
+		tgl3d_transform_rotate(&obj_t, 0.f, 0.f, 0.f);
+		tgl3d_transform_update(&obj_t);
+	}
 
 	float n = 0;
 	while (1) {
-		tgl3d_transform_rotate(&trans, 0.f, 0.f, n);
-		tgl3d_transform_update(&trans);
+		//Edit transformation to move objects or camera
+		if (render_obj == 0) {
+			tgl3d_transform_rotate(&obj_t, 0.f, 0.f, n);
+			tgl3d_transform_update(&obj_t);
+		} else {
+			tgl3d_transform_rotate(camera_t, 1.57f, n, 0.f);
+			tgl3d_transform_update(camera_t);
+		}
 
 		unsigned i;
 		for (i = 0; i < n_trigs; i++) {
 			TGLTriangle temp;
-			tgl3d_transform_apply(&trans, trigs[i].vertices, temp.vertices);
+			// Apply object's transformation
+			tgl3d_transform_apply(&obj_t, trigs[i].vertices, temp.vertices);
 			memcpy(temp.intensity, trigs[i].intensity, 3);
-			tgl3d_shader(tgl, &temp, TGL_WHITE, true, &temp, &intermediate_shader);
+
+			//Draw to framebuffer
+			tgl3d_shader(tgl,
+				&temp,
+				render_obj ? (trigs[i].vertices[0][2] + 20) / 20 : TGL_WHITE,
+				true,
+				&temp,
+				&intermediate_shader);
 		}
 
+		// Print framebuffer to terminal
 		tgl_flush(tgl);
+
+		// Clear framebuffer and depth buffer for next frame
 		tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_Z_BUFFER);
 
-		n += 0.03f;
+		n += 0.04f;
+		if (n >= 2.f * 3.14159f)
+			break;
 		usleep(100000);
 	}
 

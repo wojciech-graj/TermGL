@@ -1,17 +1,11 @@
 #include "termgl3d.h"
 #include "termgl_intern.h"
+#include "termgl_vecmath.h"
 
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
-typedef struct TGLTransform {
-	TGLMat rotate;
-	TGLMat scale;
-	TGLMat translate;
-	TGLMat result;
-} TGLTransform;
 
 typedef struct TGL3D {
 	ubyte settings;
@@ -21,7 +15,6 @@ typedef struct TGL3D {
 
 	TGLTransform transform;
 	TGLMat projection;
-	TGLMat result;
 } TGL3D;
 
 #define TGL_CULL_BIT 0x01
@@ -70,51 +63,13 @@ const TGLVec3 clip_plane_normals[6] = {
 	[CLIP_TOP] = {0.f, -1.f, 0.f},
 };
 
-__attribute__((const))
-float sqr(const float val)
+void tgl_mulmatvec(TGLMat mat, const TGLVec3 vec, TGLVec3 res)
 {
-	return val * val;
-}
+	res[0] = tgl_dot43(mat[0], vec);
+	res[1] = tgl_dot43(mat[1], vec);
+	res[2] = tgl_dot43(mat[2], vec);
 
-__attribute__((const))
-float magsqr3(const TGLVec3 vec)
-{
-	return sqr(vec[0]) + sqr(vec[1]) + sqr(vec[2]);
-}
-
-__attribute__((const))
-float dot3(const TGLVec3 vec1, const TGLVec3 vec2)
-{
-	return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2];
-}
-
-__attribute__((const))
-float dot43(const float vec1[4], const TGLVec3 vec2)
-{
-	return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2] + vec1[3];
-}
-
-void sub3(const TGLVec3 vec1, const TGLVec3 vec2, TGLVec3 res)
-{
-	res[0] = vec1[0] - vec2[0];
-	res[1] = vec1[1] - vec2[1];
-	res[2] = vec1[2] - vec2[2];
-}
-
-void cross(const TGLVec3 vec1, const TGLVec3 vec2, TGLVec3 result)
-{
-	result[0] = vec1[1] * vec2[2] - vec1[2] * vec2[1];
-	result[1] = vec1[2] * vec2[0] - vec1[0] * vec2[2];
-	result[2] = vec1[0] * vec2[1] - vec1[1] * vec2[0];
-}
-
-void mulmatvec(TGLMat mat, const TGLVec3 vec, TGLVec3 res)
-{
-	res[0] = dot43(mat[0], vec);
-	res[1] = dot43(mat[1], vec);
-	res[2] = dot43(mat[2], vec);
-
-	float w = dot43(mat[3], vec);
+	float w = tgl_dot43(mat[3], vec);
 	if (w != 0.f) {
 		w = 1.f / w;
 		res[0] *= w;
@@ -123,21 +78,7 @@ void mulmatvec(TGLMat mat, const TGLVec3 vec, TGLVec3 res)
 	}
 }
 
-void add3v(const TGLVec3 vec1, const TGLVec3 vec2, TGLVec3 result)
-{
-	result[0] = vec1[0] + vec2[0];
-	result[1] = vec1[1] + vec2[1];
-	result[2] = vec1[2] + vec2[2];
-}
-
-void mul3s(const TGLVec3 vec, const float mul, TGLVec3 result)
-{
-	result[0] = vec[0] * mul;
-	result[1] = vec[1] * mul;
-	result[2] = vec[2] * mul;
-}
-
-void mulmat(TGLMat mat1, TGLMat mat2, TGLMat res)
+void tgl_mulmat(TGLMat mat1, TGLMat mat2, TGLMat res)
 {
 	unsigned c, d, k;
 #pragma GCC unroll 4
@@ -152,14 +93,14 @@ void mulmat(TGLMat mat1, TGLMat mat2, TGLMat res)
 
 }
 
-float distance_point_plane(const TGLVec3 normal, TGLVec3 point)
+float tgl_distance_point_plane(const TGLVec3 normal, TGLVec3 point)
 {
-	return dot3(normal, point) + 1.f;
+	return tgl_dot3(normal, point) + 1.f;
 }
 
 void tgl3d_init(TGL *tgl)
 {
-	TGL3D *tgl3d = malloc(sizeof(TGL3D));
+	TGL3D *tgl3d = TGL_MALLOC(sizeof(TGL3D));
 
 	tgl3d->aspect_ratio = tgl->height / (float)tgl->width;
 	tgl3d->half_width = tgl->width / 2.f;
@@ -170,9 +111,8 @@ void tgl3d_init(TGL *tgl)
 
 void tgl3d_camera(TGL *tgl, float fov, float near, float far)
 {
-	fov *= .5f;
 	TGL3D *tgl3d = tgl->tgl3d;
-	float s = 1.f / tanf(fov);
+	float s = 1.f / tanf(fov * .5f);
 	float a = 1.f / (far - near);
 	TGLMat projection = {
 		{s * tgl3d->aspect_ratio, 0.f, 0.f, 0.f},
@@ -204,39 +144,33 @@ void tgl3d_transform_translate(TGLTransform *transform, float x, float y, float 
 void tgl3d_transform_update(TGLTransform *transform)
 {
 	TGLMat temp;
-	mulmat(transform->translate, transform->scale, temp);
-	mulmat(temp, transform->rotate, transform->result);
-}
-
-void tgl3d_projection_update(TGL *tgl)
-{
-	TGL3D *tgl3d = tgl->tgl3d;
-	mulmat(tgl3d->projection, tgl3d->transform.result, tgl3d->result);
+	tgl_mulmat(transform->translate, transform->scale, temp);
+	tgl_mulmat(temp, transform->rotate, transform->result);
 }
 
 void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3])
 {
-	mulmatvec(transform->result, in[0], out[0]);
-	mulmatvec(transform->result, in[1], out[1]);
-	mulmatvec(transform->result, in[2], out[2]);
+	tgl_mulmatvec(transform->result, in[0], out[0]);
+	tgl_mulmatvec(transform->result, in[1], out[1]);
+	tgl_mulmatvec(transform->result, in[2], out[2]);
 }
 
-float line_intersect_plane(const TGLVec3 normal, TGLVec3 start, TGLVec3 end, TGLVec3 point)
+float tgl_line_intersect_plane(const TGLVec3 normal, TGLVec3 start, TGLVec3 end, TGLVec3 point)
 {
 	TGLVec3 line_vec;
-	sub3(end, start, line_vec);
-	float distance = -(dot3(normal, start) + 1.f) / dot3(normal, line_vec);
-	mul3s(line_vec, distance, point);
-	add3v(point, start, point);
+	tgl_sub3v(start, end, line_vec);
+	float distance = -(tgl_dot3(normal, start) + 1.f) / (tgl_dot3(normal, line_vec));
+	tgl_mul3s(line_vec, distance, point);
+	tgl_add3v(point, start, point);
 	return distance;
 }
 
 unsigned clip_triangle_plane(const TGLVec3 normal, TGLTriangle *in, TGLTriangle out[2])
 {
 	TGLVec3 di = {
-		distance_point_plane(normal, in->vertices[0]),
-		distance_point_plane(normal, in->vertices[1]),
-		distance_point_plane(normal, in->vertices[2])
+		tgl_distance_point_plane(normal, in->vertices[0]),
+		tgl_distance_point_plane(normal, in->vertices[1]),
+		tgl_distance_point_plane(normal, in->vertices[2])
 	};
 
 	unsigned n_inside = 0, n_outside = 0;
@@ -262,21 +196,22 @@ unsigned clip_triangle_plane(const TGLVec3 normal, TGLTriangle *in, TGLTriangle 
 		out[0].intensity[0] = in->intensity[inside[0]];
 #pragma GCC unroll 2
 		for (unsigned i = 0; i < 2; i++) {
-			d = line_intersect_plane(normal, out[0].vertices[0], in->vertices[outside[i]], out[0].vertices[i + 1]);
+			d = tgl_line_intersect_plane(normal, out[0].vertices[0], in->vertices[outside[i]], out[0].vertices[i + 1]);
 			out[0].intensity[i + 1] = out[0].intensity[0] * (1.f - d) + in->intensity[outside[i]] * (d);
 		}
 		return 1;
 	case 2: ;
+		//TODO: fix this
 		memcpy(out[0].vertices[0], in->vertices[inside[0]], sizeof(TGLVec3));
 		memcpy(out[0].vertices[1], in->vertices[inside[1]], sizeof(TGLVec3));
-		d = line_intersect_plane(normal, out[0].vertices[0], in->vertices[outside[0]], out[0].vertices[2]);
+		d = tgl_line_intersect_plane(normal, out[0].vertices[0], in->vertices[outside[0]], out[0].vertices[2]);
 		out[0].intensity[0] = in->intensity[inside[0]];
 		out[0].intensity[1] = in->intensity[inside[1]];
 		out[0].intensity[2] = out[0].intensity[0] * (1.f - d) + in->intensity[outside[0]] * (d);
 
 		memcpy(out[1].vertices[0], in->vertices[inside[1]], sizeof(TGLVec3));
 		memcpy(out[1].vertices[1], out->vertices[2], sizeof(TGLVec3));
-		d = line_intersect_plane(normal, out[1].vertices[0], in->vertices[outside[0]], out[1].vertices[2]);
+		d = tgl_line_intersect_plane(normal, out[1].vertices[0], in->vertices[outside[0]], out[1].vertices[2]);
 		out[1].intensity[0] = in->intensity[inside[1]];
 		out[1].intensity[1] = out[0].intensity[2];
 		out[1].intensity[2] = out[1].intensity[0] * (1.f - d) + in->intensity[outside[0]] * (d);
@@ -291,18 +226,30 @@ void tgl3d_shader(TGL *tgl, TGLTriangle *in, ubyte color, bool fill, void *data,
 	TGL3D *tgl3d = tgl->tgl3d;
 
 	// VERTEX SHADER
-	TGLTriangle out;
-	mulmatvec(tgl3d->result, in->vertices[0], out.vertices[0]);
-	mulmatvec(tgl3d->result, in->vertices[1], out.vertices[1]);
-	mulmatvec(tgl3d->result, in->vertices[2], out.vertices[2]);
+	TGLTriangle t, out;
+
+	tgl_mulmatvec(tgl3d->transform.result, in->vertices[0], t.vertices[0]);
+	tgl_mulmatvec(tgl3d->transform.result, in->vertices[1], t.vertices[1]);
+	tgl_mulmatvec(tgl3d->transform.result, in->vertices[2], t.vertices[2]);
+
+	//TODO: clipping with the near plane should be done before projection, but this solution works well enough for now
+	if (t.vertices[0][2] < 1e-6f
+		|| t.vertices[1][2] < 1e-6f
+		|| t.vertices[2][2] < 1e-6f)
+		return;
+
+	tgl_mulmatvec(tgl3d->projection, t.vertices[0], out.vertices[0]);
+	tgl_mulmatvec(tgl3d->projection, t.vertices[1], out.vertices[1]);
+	tgl_mulmatvec(tgl3d->projection, t.vertices[2], out.vertices[2]);
+
 	memcpy(out.intensity, in->intensity, sizeof(ubyte) * 3);
 
 	if (tgl->settings & TGL_CULL_FACE) {
 		TGLVec3 ab, ac, cp;
-		sub3(out.vertices[1], out.vertices[0], ab);
-		sub3(out.vertices[2], out.vertices[0], ac);
-		cross(ab, ac, cp);
-		if (XNOR(tgl3d->settings & TGL_CULL_BIT, signbit(cp[2])))
+		tgl_sub3v(out.vertices[1], out.vertices[0], ab);
+		tgl_sub3v(out.vertices[2], out.vertices[0], ac);
+		tgl_cross(ab, ac, cp);
+		if (XOR(tgl3d->settings & TGL_CULL_BIT, signbit(cp[2])))
 			return;
 	}
 
