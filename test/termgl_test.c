@@ -69,11 +69,12 @@ int main(void)
 	tgl_enable(tgl, TGL_CULL_FACE);
 	tgl3d_cull_face(tgl, TGL_BACK | TGL_CCW);
 	tgl_enable(tgl, TGL_Z_BUFFER);
+	tgl_enable(tgl, TGL_OUTPUT_BUFFER);
 	tgl3d_camera(tgl, 1.57f, 0.1f, 5.f);
 
 	// Load triangles
 	TGLTriangle *trigs;
-	FILE *stl_file = fopen(render_obj ? "canyon2_2.stl" : "utah_teapot.stl", "rb");
+	FILE *stl_file = fopen(render_obj ? "assets/canyon2_2.stl": "assets/utah_teapot.stl", "rb");
 	assert(stl_file);
 	uint32_t n_trigs = stl_load(stl_file, &trigs);
 	fclose(stl_file);
@@ -122,7 +123,7 @@ int main(void)
 			//Draw to framebuffer
 			tgl3d_shader(tgl,
 				&temp,
-				render_obj ? (trigs[i].vertices[0][2] + 20) / 20 : TGL_WHITE,
+				render_obj ? (trigs[i].vertices[0][2] + 20) / 20: TGL_WHITE,
 				true,
 				&temp,
 				&intermediate_shader);
@@ -132,7 +133,7 @@ int main(void)
 		tgl_flush(tgl);
 
 		// Clear framebuffer and depth buffer for next frame
-		tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_Z_BUFFER);
+		tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER);
 
 		n += 0.04f;
 		if (n >= 2.f * 3.14159f)

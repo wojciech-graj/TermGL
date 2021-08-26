@@ -17,6 +17,8 @@ typedef struct TGL {
 	unsigned frame_size;
 	Pixel *frame_buffer;
 	float *z_buffer;
+	char *output_buffer;
+	unsigned output_buffer_size;
 	bool z_buffer_enabled;
 	ubyte settings;
 	const Gradient *gradient;
