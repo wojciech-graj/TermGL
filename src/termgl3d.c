@@ -201,7 +201,6 @@ unsigned clip_triangle_plane(const TGLVec3 normal, TGLTriangle *in, TGLTriangle 
 		}
 		return 1;
 	case 2: ;
-		//TODO: fix this
 		memcpy(out[0].vertices[0], in->vertices[inside[0]], sizeof(TGLVec3));
 		memcpy(out[0].vertices[1], in->vertices[inside[1]], sizeof(TGLVec3));
 		d = tgl_line_intersect_plane(normal, out[0].vertices[0], in->vertices[outside[0]], out[0].vertices[2]);
@@ -309,7 +308,7 @@ void tgl3d_shader(TGL *tgl, TGLTriangle *in, ubyte color, bool fill, void *data,
 
 void tgl3d_cull_face(TGL *tgl, ubyte settings)
 {
-	tgl->tgl3d->settings = (tgl->tgl3d->settings & ~TGL_CULL_BIT) | (XOR(settings & TGL_CULL_FACE_BIT, settings & TGL_WINDING_BIT) ? TGL_CULL_BIT : 0);
+	tgl->tgl3d->settings = (tgl->tgl3d->settings & ~TGL_CULL_BIT) | (XOR(settings & TGL_CULL_FACE_BIT, settings & TGL_WINDING_BIT) ? TGL_CULL_BIT: 0);
 }
 
 TGLTransform *tgl3d_get_transform(TGL *tgl)

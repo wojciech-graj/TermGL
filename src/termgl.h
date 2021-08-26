@@ -42,11 +42,12 @@ enum /*colors*/ {
 
 #define TGL_FRAME_BUFFER 0x01
 #define TGL_Z_BUFFER 0x40
+#define TGL_OUTPUT_BUFFER 0x20
 #define TGL_DOUBLE_CHARS 0x80
 
 /**
  * Initializes a TGL struct which must be passed to all functions as context
- * @param gradient : pointer to a gradient struct which holds characters which will be used when rendering. Gradients provided by default are gradient_min and gradient_full
+ * @param gradient: pointer to a gradient struct which holds characters which will be used when rendering. Gradients provided by default are gradient_min and gradient_full
  */
 TGL *tgl_init(const unsigned width, const unsigned height, const Gradient *gradient);
 
@@ -62,7 +63,7 @@ void tgl_flush(TGL *tgl);
 
 /**
  * Clears frame buffers
- * @param buffers : bitwise combination of buffers:
+ * @param buffers: bitwise combination of buffers:
  *   TGL_FRAME_BUFFER - frame buffer
  *   TGL_Z_BUFFER - depth buffer
  */
@@ -70,18 +71,19 @@ void tgl_clear(TGL *tgl, ubyte buffers);
 
 /**
  * Enables or disables certain settings
- * @param settings : bitwise combination of settings:
+ * @param settings: bitwise combination of settings:
  *   TGL_Z_BUFFER - depth buffer
  *   TGL_DOUBLE_CHARS - square pixels by printing 2 characters per pixel
  *   TGL_CULL_FACE - (3D ONLY) cull specified triangle faces
+ *   TGL_OUTPUT_BUFFER - output buffer allowing for just one print to flush. Mush faster on most terminals, but requires a few hundred kilobytes of memory
  */
 void tgl_enable(TGL *tgl, ubyte settings);
 void tgl_disable(TGL *tgl, ubyte settings);
 
 /**
  * Various drawing functions
- * @param i : intensity of pixel which will be mapped to character on gradient
- * #param color: bitwise combination of colors defined in above enum. Can use one foreground (TGL_COLOR) and one background (TGL_COLOR_BKG)
+ * @param i: intensity of pixel which will be mapped to character on gradient
+ * @param color: bitwise combination of colors defined in above enum. Can use one foreground (TGL_COLOR) and one background (TGL_COLOR_BKG)
  */
 void tgl_putchar(TGL *tgl, int x, int y, char c, ubyte color);
 void tgl_puts(TGL *tgl, int x, int y, char *str, ubyte color);

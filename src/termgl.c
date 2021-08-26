@@ -85,6 +85,8 @@ void tgl_clear(TGL *tgl, const ubyte buffers)
 	if (buffers & TGL_Z_BUFFER)
 		for (i = 0; i < tgl->frame_size; i++)
 			tgl->z_buffer[i] = -1.f;
+	if (buffers & TGL_OUTPUT_BUFFER)
+		memset(tgl->output_buffer, '\0', tgl->output_buffer_size);
 }
 
 TGL *tgl_init(const unsigned width, const unsigned height, const Gradient *gradient)
@@ -111,19 +113,40 @@ void tgl_flush(TGL *tgl)
 	Pixel *pixel = tgl->frame_buffer;
 	bool double_chars = tgl->settings & TGL_DOUBLE_CHARS;
 
-	for (row = 0; row < tgl->height; row++) {
-		for (col = 0; col < tgl->width; col++) {
-			if (color != pixel->color) {
-				color = pixel->color;
-				fputs(color_codes[color & 0x0F], stdout);
-				fputs(color_codes_bkg[color >> 4], stdout);
+	if (tgl->output_buffer_size) {
+		char *output_buffer_loc = tgl->output_buffer;
+		for (row = 0; row < tgl->height; row++) {
+			for (col = 0; col < tgl->width; col++) {
+				if (color != pixel->color) {
+					color = pixel->color;
+					memcpy(output_buffer_loc, color_codes[color & 0x0F], 7);
+					output_buffer_loc += 7;
+					memcpy(output_buffer_loc, color_codes_bkg[color >> 4], 5);
+					output_buffer_loc += 5;
+				}
+				*(output_buffer_loc++) = pixel->v_char;
+				if (double_chars)
+					*(output_buffer_loc++) = pixel->v_char;
+				pixel++;
 			}
-			putchar(pixel->v_char);
-			if (double_chars)
-				putchar(pixel->v_char);
-			pixel++;
+			*(output_buffer_loc++) = '\n';
 		}
-		putchar('\n');
+		puts(tgl->output_buffer);
+	} else {
+		for (row = 0; row < tgl->height; row++) {
+			for (col = 0; col < tgl->width; col++) {
+				if (color != pixel->color) {
+					color = pixel->color;
+					fputs(color_codes[color & 0x0F], stdout);
+					fputs(color_codes_bkg[color >> 4], stdout);
+				}
+				putchar(pixel->v_char);
+				if (double_chars)
+					putchar(pixel->v_char);
+				pixel++;
+			}
+			putchar('\n');
+		}
 	}
 	fflush(stdout);
 }
@@ -475,6 +498,12 @@ void tgl_enable(TGL *tgl, ubyte settings)
 	if (settings & TGL_Z_BUFFER) {
 		tgl->z_buffer_enabled = true;
 		tgl->z_buffer = TGL_MALLOC(sizeof(float) * tgl->frame_size);
+		tgl_clear(tgl, TGL_Z_BUFFER);
+	}
+	if (settings & TGL_OUTPUT_BUFFER) {
+		tgl->output_buffer_size = 14 * tgl->frame_size + tgl->height + 1;
+		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
+		tgl_clear(tgl, TGL_OUTPUT_BUFFER);
 	}
 }
 
@@ -486,12 +515,18 @@ void tgl_disable(TGL *tgl, ubyte settings)
 		TGL_FREE(tgl->z_buffer);
 		tgl->z_buffer = NULL;
 	}
+	if (settings & TGL_OUTPUT_BUFFER) {
+		tgl->output_buffer_size = 0;
+		TGL_FREE(tgl->output_buffer);
+		tgl->output_buffer = NULL;
+	}
 }
 
 void tgl_delete(TGL *tgl)
 {
 	TGL_FREE(tgl->frame_buffer);
 	TGL_FREE(tgl->z_buffer);
+	TGL_FREE(tgl->output_buffer);
 	TGL_FREE(tgl->tgl3d);
 	TGL_FREE(tgl);
 }
