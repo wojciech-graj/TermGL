@@ -3,6 +3,8 @@
 A terminal-based graphics library for both 2D and 3D graphics.\
 Written in C, created for terminals supporting ANSI escape codes.
 
+A single-header version created by [assyrianic](https://github.com/assyrianic) can be found in [their repo](https://github.com/assyrianic/TermGL) or [this branch](https://github.com/wojciech-graj/TermGL/tree/single-header)
+
 ## Table of Contents
 [Gallery](https://github.com/wojciech-graj/TermGL/blob/master/README.md#Gallery)\
 [Build](https://github.com/wojciech-graj/TermGL/blob/master/README.md#Build)\
