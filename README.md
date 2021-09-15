@@ -3,6 +3,8 @@
 A terminal-based graphics library for both 2D and 3D graphics.\
 Written in C, created for terminals supporting ANSI escape codes.
 
+**Header-only version, with some modifications and code updates by Nergal/Kevin.**
+
 ## Table of Contents
 [Gallery](https://github.com/wojciech-graj/TermGL/blob/master/README.md#Gallery)\
 [Build](https://github.com/wojciech-graj/TermGL/blob/master/README.md#Build)\

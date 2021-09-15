@@ -1,6 +1,4 @@
 #include "../src/termgl.h"
-#include "../src/termgl3d.h"
-#include "../src/termgl_vecmath.h"
 
 #include <assert.h>
 #include <math.h>
@@ -9,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
 
 typedef struct  STLTriangle {
 	float normal[3]; //normal is unreliable so it is not used.
@@ -59,12 +58,12 @@ uint32_t stl_load(FILE *file, TGLTriangle **triangles)
 
 int main(void)
 {
-	// Select which scene to render. Either 0 or 1
-	unsigned render_obj = 1;
-
-	// Initialize TermGL
-	TGL *tgl = tgl_init(80, 60, &gradient_min);
-	tgl_enable(tgl, TGL_DOUBLE_CHARS);
+	/// Select which scene to render. Either 0 or 1
+	unsigned render_obj = 0;
+	
+	/// Initialize TermGL
+	TGL *tgl = tgl_init(80, 50, &gradient_min);
+	//tgl_enable(tgl, TGL_DOUBLE_CHARS);
 	tgl3d_init(tgl);
 	tgl_enable(tgl, TGL_CULL_FACE);
 	tgl3d_cull_face(tgl, TGL_BACK | TGL_CCW);
@@ -72,20 +71,20 @@ int main(void)
 	tgl_enable(tgl, TGL_OUTPUT_BUFFER);
 	tgl3d_camera(tgl, 1.57f, 0.1f, 5.f);
 
-	// Load triangles
-	TGLTriangle *trigs;
+	/// Load triangles
+	TGLTriangle *trigs = NULL;
 	FILE *stl_file = fopen(render_obj ? "assets/canyon2_2.stl": "assets/utah_teapot.stl", "rb");
 	assert(stl_file);
 	uint32_t n_trigs = stl_load(stl_file, &trigs);
 	fclose(stl_file);
-
-	// Edit camera transformations
+	
+	/// Edit camera transformations
 	TGLTransform *camera_t = tgl3d_get_transform(tgl);
 	tgl3d_transform_scale(camera_t, 1.0f, 1.0f, 1.0f);
 	tgl3d_transform_rotate(camera_t, 2.1f, 0.f, 0.f);
 	if (render_obj == 0) {
 		tgl3d_transform_translate(camera_t, 0.f, 0.f, 2.f);
-			tgl3d_transform_update(camera_t);
+		tgl3d_transform_update(camera_t);
 	} else {
 		tgl3d_transform_translate(camera_t, 0.f, 3.f, 0.0f);
 	}
@@ -138,8 +137,9 @@ int main(void)
 		n += 0.04f;
 		if (n >= 2.f * 3.14159f)
 			break;
+		
 		usleep(100000);
 	}
-
+	free(trigs);
 	tgl_delete(tgl);
 }
