@@ -142,4 +142,5 @@ int main(void)
 	}
 
 	tgl_delete(tgl);
+	free(trigs);
 }
