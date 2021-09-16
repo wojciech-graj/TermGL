@@ -161,7 +161,7 @@ void tgl_puts(TGL *tgl, int x, int y, char *str, ubyte color)
 {
 	itgl_clip(tgl, &x, &y);
 	char *c_ptr = str;
-	while (c_ptr) {
+	while (*c_ptr) {
 		SET_PIXEL_RAW(tgl, x, y, *c_ptr, color);
 		c_ptr++;
 	}
