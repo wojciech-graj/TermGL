@@ -220,7 +220,7 @@ typedef struct TGL {
 	float *z_buffer;
 	char *output_buffer;
 	const Gradient *gradient;
-	
+
 	unsigned width;
 	unsigned height;
 	int max_x;
@@ -722,7 +722,7 @@ static inline void tgl_flush(TGL *tgl)
 	uint8_t color = 0xFF;
 	Pixel *pixel = tgl->frame_buffer;
 	bool double_chars = tgl->settings & TGL_DOUBLE_CHARS;
-	
+
 	if (tgl->output_buffer_size) {
 		char *output_buffer_loc = tgl->output_buffer;
 		for (unsigned row = 0; row < tgl->height; row++) {
@@ -771,7 +771,7 @@ static inline void tgl_puts(TGL *tgl, int x, int y, char *str, uint8_t color)
 {
 	itgl_clip(tgl, &x, &y);
 	char *c_ptr = str;
-	while (c_ptr) {
+	while (*c_ptr) {
 		SET_PIXEL_RAW(tgl, x, y, *c_ptr, color);
 		c_ptr++;
 	}
