@@ -1,6 +1,10 @@
 #ifndef TERMGL_H
 #define TERMGL_H
 
+#ifdef __cplusplus
+extern "C"{
+#endif
+
 #include <stdbool.h>
 
 /**
@@ -216,5 +220,9 @@ void tgl3d_transform_update(TGLTransform *transform);
 void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3]);
 
 #endif /* TERMGL3D */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TERMGL_H */

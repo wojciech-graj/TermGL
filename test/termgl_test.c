@@ -1,5 +1,3 @@
-#include "../src/termgl.h"
-
 #include <assert.h>
 #include <math.h>
 #include <stdint.h>
@@ -7,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "termgl.h"
 
 typedef struct  STLTriangle {
 	float normal[3]; //normal is unreliable so it is not used.
@@ -75,7 +75,7 @@ int main(void)
 
 	// Load triangles
 	TGLTriangle *trigs;
-	FILE *stl_file = fopen(render_obj ? "assets/canyon2_2.stl": "assets/utah_teapot.stl", "rb");
+	FILE *stl_file = fopen(render_obj ? "test/assets/canyon2_2.stl": "test/assets/utah_teapot.stl", "rb");
 	assert(stl_file);
 	uint32_t n_trigs = stl_load(stl_file, &trigs);
 	fclose(stl_file);
