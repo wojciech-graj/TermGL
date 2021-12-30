@@ -1,6 +1,4 @@
 #include "../src/termgl.h"
-#include "../src/termgl3d.h"
-#include "../src/termgl_vecmath.h"
 
 #include <assert.h>
 #include <math.h>
@@ -15,6 +13,9 @@ typedef struct  STLTriangle {
 	float vertices[3][3];
 	uint16_t attribute_bytes; //attribute bytes is unreliable so it is not used.
 } __attribute__ ((packed)) STLTriangle;
+
+void intermediate_shader(TGLTriangle *trig, void *data);
+uint32_t stl_load(FILE *file, TGLTriangle **triangles);
 
 void intermediate_shader(TGLTriangle *trig, void *data)
 {
@@ -138,7 +139,8 @@ int main(void)
 		n += 0.04f;
 		if (n >= 2.f * 3.14159f)
 			break;
-		usleep(100000);
+
+		usleep(50000);
 	}
 
 	tgl_delete(tgl);
