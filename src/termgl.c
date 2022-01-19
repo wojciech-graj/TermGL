@@ -160,6 +160,9 @@ void tgl_flush(TGL *tgl)
 			}
 			*(output_buffer_loc++) = '\n';
 		}
+        memcpy(output_buffer_loc, color_codes[TGL_WHITE], 7);
+        output_buffer_loc += 7;
+        memcpy(output_buffer_loc, color_codes_bkg[TGL_BLACK_BKG], 5);
 		puts(tgl->output_buffer);
 	} else {
 		for (row = 0; row < tgl->height; row++) {
@@ -176,7 +179,10 @@ void tgl_flush(TGL *tgl)
 			}
 			putchar('\n');
 		}
+        fputs(color_codes[TGL_WHITE], stdout);
+        fputs(color_codes_bkg[TGL_BLACK_BKG], stdout);
 	}
+
 	fflush(stdout);
 }
 
@@ -192,6 +198,8 @@ void tgl_puts(TGL *tgl, int x, int y, char *str, TGLubyte color)
 	char *c_ptr = str;
 	while (*c_ptr) {
 		SET_PIXEL_RAW(tgl, x, y, *c_ptr, color);
+        x++;
+        itgl_clip(tgl, &x, &y);
 		c_ptr++;
 	}
 }
@@ -531,7 +539,7 @@ void tgl_enable(TGL *tgl, TGLubyte settings)
 		tgl_clear(tgl, TGL_Z_BUFFER);
 	}
 	if (settings & TGL_OUTPUT_BUFFER) {
-		tgl->output_buffer_size = 14 * tgl->frame_size + tgl->height + 1;
+		tgl->output_buffer_size = 14 * tgl->frame_size + tgl->height + 13;
 		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
 		tgl_clear(tgl, TGL_OUTPUT_BUFFER);
 	}
