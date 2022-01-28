@@ -5,6 +5,9 @@
 extern "C"{
 #endif
 
+#define TGL_VERSION_MAJOR 1
+#define TGL_VERSION_MINOR 0
+
 #include <stdbool.h>
 
 #if defined(_WIN32) || defined(WIN32)
