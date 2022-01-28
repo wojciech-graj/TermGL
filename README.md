@@ -35,12 +35,13 @@ To enable 3D functionality, use the ```-DTERMGL3D``` flag when compiling
 
 #### Method 2: Shared library
 
-1. Run the makefile as root ```sudo make shared``` to create ```/usr/local/lib/libtermgl.so```
-2. Add the following flags to your compiler ```-I/path/to/TermGL/lib -ltermgl -lm```
+1. Run the makefile ```make shared``` to create ```lib/libtermgl.so```
+2. Copy to library directory ```sudo cp lib/libtermgl.so /usr/local/lib/libtermgl.so```
+3. Add the following flags to your compiler ```-I/path/to/TermGL/lib -ltermgl -lm```
 
 #### Method 3: Static library
 
-1. Run the makefile ```make static``` to create ```lib/libtermgl.so```
+1. Run the makefile ```make shared``` to create ```lib/libtermgl.so```
 2. Add the following flags to your compiler ```-I/path/to/TermGL/lib -L/path/to/TermGL/lib -ltermgl -lm```
 
 ### C++
