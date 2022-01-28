@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef TGL_OS_WINDOWS
+#include <windows.h>
+#endif
+
 #ifdef TERMGL3D
 typedef struct TGL3D TGL3D;
 #endif
@@ -120,6 +124,23 @@ void tgl_clear(TGL *tgl, const TGLubyte buffers)
 
 TGL *tgl_init(const unsigned width, const unsigned height, const TGLGradient *gradient)
 {
+#ifdef TGL_OS_WINDOWS
+	static bool win_init = false;
+	if (!win_init) {
+		win_init = true;
+
+		HANDLE hOutputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+		DWORD mode;
+		GetConsoleMode(hOutputHandle, &mode);
+		mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+		SetConsoleMode(hOutputHandle, mode);
+
+		HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
+		GetConsoleMode(hInputHandle, &mode);
+		mode &= ~(ENABLE_MOUSE_INPUT | ENABLE_WINDOW_INPUT | ENABLE_QUICK_EDIT_MODE);
+		SetConsoleMode(hInputHandle, mode);
+	}
+#endif
 	TGL *tgl = TGL_MALLOC(sizeof(TGL));
 	*tgl = (TGL) {
 		.width = width,
@@ -753,15 +774,15 @@ void tgl3d_init(TGL *tgl)
 	tgl->tgl3d = tgl3d;
 }
 
-void tgl3d_camera(TGL *tgl, float fov, float near, float far)
+void tgl3d_camera(TGL *tgl, float fov, float near_val, float far_val)
 {
 	TGL3D *tgl3d = tgl->tgl3d;
 	float s = 1.f / tanf(fov * .5f);
-	float a = 1.f / (far - near);
+	float a = 1.f / (far_val - near_val);
 	TGLMat projection = {
 		{s * tgl3d->aspect_ratio, 0.f, 0.f, 0.f},
 		{0.f, s, 0.f, 0.f},
-		{0.f, 0.f, -(far + near) * a, 2.f * far * near * a},
+		{0.f, 0.f, -(far_val + near_val) * a, 2.f * far_val * near_val * a},
 		{0.f, 0.f, 1.f, 0.f},
 	};
 	memcpy(tgl->tgl3d->projection, projection, sizeof(TGLMat));
@@ -961,3 +982,64 @@ TGLTransform *tgl3d_get_transform(TGL *tgl)
 }
 
 #endif /* TERMGL3D */
+
+#ifdef TERMGLUTIL
+
+#ifdef __unix__
+#include <termios.h>
+#endif
+
+TGL_SSIZE_T tglutil_read(char *buf, size_t count)
+{
+#ifdef __unix__
+	struct termios oldt, newt;
+
+	// Disable canonical mode
+	tcgetattr(STDIN_FILENO, &oldt);
+	newt = oldt;
+	newt.c_lflag &= ~(ICANON);
+	newt.c_cc[VMIN] = 0;
+	newt.c_cc[VTIME] = 0;
+	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+	TGL_SSIZE_T retval = read(2, buf, count);
+
+	tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+
+	// Flush input buffer to prevent read of previous unread input
+	tcflush(STDIN_FILENO, TCIFLUSH);
+#else /* defined(TGL_OS_WINDOWS) */
+	HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
+
+	// Disable canonical mode
+	DWORD old_mode, new_mode;
+	GetConsoleMode(hInputHandle, &old_mode);
+	new_mode = old_mode;
+	new_mode &= ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
+	SetConsoleMode(hInputHandle, new_mode);
+
+	DWORD event_cnt;
+	GetNumberOfConsoleInputEvents(hInputHandle, &event_cnt);
+
+	// ReadConsole is blocking to must manually process events
+	size_t retval = 0;
+	if (event_cnt) {
+		INPUT_RECORD input_records[32];
+		ReadConsoleInput(hInputHandle, input_records, 32, &event_cnt);
+
+		DWORD i;
+		for (i = 0; i < event_cnt; i++) {
+			if (input_records[i].Event.KeyEvent.bKeyDown && input_records[i].EventType == KEY_EVENT) {
+				buf[retval++] = input_records[i].Event.KeyEvent.uChar.AsciiChar;
+				if (retval == count)
+					break;
+			}
+		}
+	}
+
+	SetConsoleMode(hInputHandle, old_mode);
+#endif
+	return retval;
+}
+
+#endif /* TERMGLUTIL */

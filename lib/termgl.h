@@ -7,6 +7,11 @@ extern "C"{
 
 #include <stdbool.h>
 
+#if defined(_WIN32) || defined(WIN32)
+#define TGL_OS_WINDOWS
+#include <windef.h>
+#endif
+
 /**
  * Setting MACROs
  */
@@ -177,10 +182,10 @@ void tgl3d_init(TGL *tgl);
 /**
  * Sets the camera's perspective projection matrix
  * @param fov: field of view angle in radians
- * @param near: distance to near clipping plane
- * @param far: distance to far clipping plane
+ * @param near_val: distance to near clipping plane
+ * @param far_val: distance to far clipping plane
  */
-void tgl3d_camera(TGL *tgl, float fov, float near, float far);
+void tgl3d_camera(TGL *tgl, float fov, float near_val, float far_val);
 
 /**
  * Gets the camera's TGLTransform transformation matrices which can be operated on using tgl3d_transform_... functions
@@ -220,6 +225,26 @@ void tgl3d_transform_update(TGLTransform *transform);
 void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3]);
 
 #endif /* TERMGL3D */
+
+#ifdef TERMGLUTIL
+
+#include <stddef.h>
+
+#ifdef __unix__
+#include <unistd.h>
+#define TGL_SSIZE_T ssize_t
+#elif defined(TGL_OS_WINDOWS)
+#define TGL_SSIZE_T SSIZE_T
+#else
+#error "TermGLUtil is only supported on UNIX and Windows."
+#endif
+
+/**
+ * Reads up to count bytes from raw terminal input into buf
+ */
+TGL_SSIZE_T tglutil_read(char *buf, size_t count);
+
+#endif /* TERMGLUTIL */
 
 #ifdef __cplusplus
 }
