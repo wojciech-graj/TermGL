@@ -4,9 +4,9 @@
 
 A terminal-based graphics library for both 2D and 3D graphics.\
 Works in all terminals supporting ANSI escape codes.\
-C11 compliant, only reliant on the C standard library.
-
-A single-header version created by [assyrianic](https://github.com/assyrianic) can be found in [their repo](https://github.com/assyrianic/TermGL). It will not have ongoing support.
+Support for Windows and UNIX.\
+C11 compliant, with no external dependencies.\
+Can read from terminal for user-interaction.
 
 ## Table of Contents
 
@@ -26,8 +26,8 @@ A single-header version created by [assyrianic](https://github.com/assyrianic) c
 
 ### C
 
-To enable 3D functionality, use the ```-DTERMGL3D``` flag when compiling\
-To enable utility functions, use the ```-DTERMGLUTIL``` flag when compiling\
+To enable 3D functionality, use the ```-DTERMGL3D``` compiler flag\
+To enable utility functions, use the ```-DTERMGLUTIL``` compiler flag\
 When running makefile, additional cflags can be specified be passing a command line argument ```CFLAGS=-DTERMGL3D\ -DTERMGLUTIL```
 
 #### Method 1: Regular source file
@@ -50,17 +50,19 @@ When running makefile, additional cflags can be specified be passing a command l
 
 The above Methods 2 and 3 for C can be used to use TermGL in C++
 
-### Demo
-
-To compile a demo program, run the makefile ```make demo```
-
 ### Windows
 
-To compile using mingw for Windows, include the following command line argument when running the makefile ```COMPILER=i686-w64-mingw32-gcc-win32```
+Compilation for Windows can be done by chaning the compiler using the following command line argument when running the makefile ```COMPILER=```.
+If compiling using mingw on linux, use ```COMPILER=i686-w64-mingw32-gcc-win32```.
+
+### Demo
+
+To compile a demo program, run the makefile ```make demo```. Use the ```a``` and ```d``` keys to rotate view in the demo.
 
 ## Documentation
 
-Certain settings can be changed in [lib/termgl.h](lib/termgl.h), e.g. memory allocation functions, clear screen command, compiler-specific commands.\
+Certain settings can be changed at the top of [lib/termgl.h](lib/termgl.h) prior to compilation, e.g. memory allocation functions, clear screen command, compiler-specific commands.\
 A sample program exists here: [test/termgl_test.c](test/termgl_test.c), and utilizes all major features of the TermGL library.\
 The header file [lib/termgl.h](lib/termgl.h) contains brief documentation for all functions and structs.\
-Compiler-specific (GCC) macros are used for loop unrolling in the ```itgl_mulmat``` and ```itgl_clip_triangle_plane``` functions
+Compiler-specific (GCC) macros are used for loop unrolling in the ```itgl_mulmat``` and ```itgl_clip_triangle_plane``` functions.\
+The TermGLUtil extension contains functions for reading keyboard input, but requires either Windows of UNIX headers.

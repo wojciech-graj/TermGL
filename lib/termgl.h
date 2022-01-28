@@ -240,7 +240,7 @@ void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3
 #endif
 
 /**
- * Reads count bytes from raw terminal input into buf
+ * Reads up to count bytes from raw terminal input into buf
  */
 TGL_SSIZE_T tglutil_read(char *buf, size_t count);
 
