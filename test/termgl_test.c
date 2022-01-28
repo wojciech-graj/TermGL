@@ -103,7 +103,7 @@ int main(void)
 		tgl3d_transform_update(&obj_t);
 	}
 
-    char *input_buf = malloc(1);
+	char input_buf[1];
 
 	float n = 0;
 	while (1) {
