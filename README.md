@@ -26,7 +26,9 @@ A single-header version created by [assyrianic](https://github.com/assyrianic) c
 
 ### C
 
-To enable 3D functionality, use the ```-DTERMGL3D``` flag when compiling
+To enable 3D functionality, use the ```-DTERMGL3D``` flag when compiling\
+To enable utility functions, use the ```-DTERMGLUTIL``` flag when compiling\
+When running makefile, additional cflags can be specified be passing a command line argument ```CFLAGS=-DTERMGL3D\ -DTERMGLUTIL```
 
 #### Method 1: Regular source file
 
@@ -50,7 +52,11 @@ The above Methods 2 and 3 for C can be used to use TermGL in C++
 
 ### Demo
 
-To compile a demo program, run the [Makefile](Makefile) ```make demo```
+To compile a demo program, run the makefile ```make demo```
+
+### Windows
+
+To compile using mingw for Windows, include the following command line argument when running the makefile ```COMPILER=i686-w64-mingw32-gcc-win32```
 
 ## Documentation
 
