@@ -8,8 +8,6 @@ LINK_CFLAGS := -Ilib -lm
 RELEASE_CFLAGS := -O3
 
 shared:
-	$(COMPILER) -c $(SRC) -shared -o /usr/local/lib/libtermgl.so $(WARNINGS) $(CFLAGS) $(LINK_CFLAGS) $(RELEASE_CFLAGS) -fPIC
-static:
 	$(COMPILER) -c $(SRC) -shared -o lib/libtermgl.so $(WARNINGS) $(CFLAGS) $(LINK_CFLAGS) $(RELEASE_CFLAGS) -fPIC
 demo:
 	$(COMPILER) $(SRC) $(DEMO) -o demo $(WARNINGS) $(CFLAGS) $(LINK_CFLAGS) $(RELEASE_CFLAGS)
