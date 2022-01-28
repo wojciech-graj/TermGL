@@ -103,6 +103,8 @@ int main(void)
 		tgl3d_transform_update(&obj_t);
 	}
 
+    char *input_buf = malloc(1);
+
 	float n = 0;
 	while (1) {
 		//Edit transformation to move objects or camera
@@ -136,11 +138,18 @@ int main(void)
 		// Clear framebuffer and depth buffer for next frame
 		tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER);
 
-		n += 0.04f;
-		if (n >= 2.f * 3.14159f)
-			break;
+		if (tglutil_read(input_buf, 1)) {
+			if (input_buf[0] == 'a')
+				n += 0.1f;
+			else if (input_buf[0] == 'd')
+				n -= 0.1f;
+		}
 
+#ifdef TGL_OS_WINDOWS
+		_sleep(100);
+#else
 		usleep(50000);
+#endif
 	}
 
 	tgl_delete(tgl);
