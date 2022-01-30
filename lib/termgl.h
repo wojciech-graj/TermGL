@@ -247,6 +247,20 @@ void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3
  */
 TGL_SSIZE_T tglutil_read(char *buf, size_t count);
 
+/**
+ * Stores number of console columns and rows in *col and *row respectively
+ * @param screen_buffer: true for size of screen buffer, false for size of window. On UNIX, value is ignored and assumed true.
+ * @return 0 on success, -1 on failure
+ */
+int tglutil_get_console_size(unsigned *col, unsigned *row, bool screen_buffer);
+
+/**
+ * Sets console size
+ * Only changes printable area and will not change window size if new size is larger than window
+ * @return 0 on success, -1 on failure
+ */
+int tglutil_set_console_size(unsigned col, unsigned row);
+
 #endif /* TERMGLUTIL */
 
 #ifdef __cplusplus

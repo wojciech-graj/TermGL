@@ -993,6 +993,7 @@ TGLTransform *tgl3d_get_transform(TGL *tgl)
 
 #ifdef __unix__
 #include <termios.h>
+#include <sys/ioctl.h>
 #endif
 
 TGL_SSIZE_T tglutil_read(char *buf, size_t count)
@@ -1047,5 +1048,46 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count)
 #endif
 	return retval;
 }
+
+int tglutil_get_console_size(unsigned *col, unsigned *row, bool screen_buffer)
+{
+#ifdef __unix__
+	(void)screen_buffer;
+	struct winsize w;
+	int retval = ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+	*col = w.ws_col;
+	*row = w.ws_row;
+#else /* defined(TGL_OS_WINDOWS) */
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	int retval = GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi) ? 0 : -1;
+	if (screen_buffer) {
+		*col = csbi.dwSize.X;
+		*row = csbi.dwSize.Y;
+	} else {
+		*col = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+		*row = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+	}
+#endif
+	return retval;
+}
+
+int tglutil_set_console_size(unsigned col, unsigned row)
+{
+#ifdef __unix__
+	struct winsize w = (struct winsize) {
+		.ws_row = row,
+		.ws_col = col,
+	};
+	int retval = ioctl(STDOUT_FILENO, TIOCSWINSZ, &w);
+#else /* defined(TGL_OS_WINDOWS) */
+	COORD size = (COORD) {
+		.Y = row,
+		.X = col,
+	};
+	int retval = SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), size) ? 0 : -1;
+#endif
+	return retval;
+}
+
 
 #endif /* TERMGLUTIL */

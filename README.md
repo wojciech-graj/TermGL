@@ -5,8 +5,8 @@
 A terminal-based graphics library for both 2D and 3D graphics.\
 Works in all terminals supporting ANSI escape codes.\
 Support for Windows and UNIX.\
-C11 compliant, with no external dependencies.\
-Can read from terminal for user-interaction.
+C99 compliant, with no external dependencies.\
+Realtime input reading from terminal for user-interaction.
 
 ## Table of Contents
 
