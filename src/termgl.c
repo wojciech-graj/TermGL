@@ -18,7 +18,7 @@ typedef struct Pixel {
 	TGLubyte color;
 } Pixel;
 
-typedef struct TGL {
+struct TGL {
 	unsigned width;
 	unsigned height;
 	int max_x;
@@ -34,7 +34,7 @@ typedef struct TGL {
 #ifdef TERMGL3D
 	TGL3D *tgl3d;
 #endif
-} TGL;
+};
 
 #define SWAP(a, b) do {TGL_TYPEOF(a) temp = a; a = b; b = temp;} while(0)
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -596,7 +596,7 @@ void tgl_delete(TGL *tgl)
 
 #include <math.h>
 
-typedef struct TGL3D {
+struct TGL3D {
 	TGLubyte settings;
 	float aspect_ratio;
 	float half_width;
@@ -604,7 +604,7 @@ typedef struct TGL3D {
 
 	TGLTransform transform;
 	TGLMat projection;
-} TGL3D;
+};
 
 #define TGL_CULL_BIT 0x01
 
