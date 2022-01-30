@@ -178,7 +178,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 
 	// Load triangles
 	TGLTriangle *trigs;
-	FILE *stl_file = fopen("test/utah_teapot.stl", "rb");
+	FILE *stl_file = fopen("demodir/utah_teapot.stl", "rb");
 	assert(stl_file);
 	uint32_t n_trigs = stl_load(stl_file, &trigs);
 	fclose(stl_file);
@@ -322,8 +322,6 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 
 	tgl_delete(tgl);
 }
-
-#include <windows.h>
 
 int main(int argc, char **argv)
 {
