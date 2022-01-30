@@ -36,30 +36,30 @@ struct TGL {
 #endif
 };
 
-#define SWAP(a, b) do {TGL_TYPEOF(a) temp = a; a = b; b = temp;} while(0)
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
-#define XOR(a, b) (((bool)(a))!=((bool)(b)))
+#define SWAP(a_, b_) do {TGL_TYPEOF(a_) temp_ = a_; a_ = b_; b_ = temp_;} while(0)
+#define MIN(a_, b_) (((a_)<(b_))?(a_):(b_))
+#define MAX(a_, b_) (((a_)>(b_))?(a_):(b_))
+#define XOR(a_, b_) (((bool)(a_))!=((bool)(b_)))
 
-#define SET_PIXEL_RAW(tgl, x, y, v_char_, color_)\
+#define SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_)\
 	do {\
-		*(&tgl->frame_buffer[y * tgl->width + x]) = (Pixel) {\
+		*(&tgl_->frame_buffer[y_ * tgl->width + x_]) = (Pixel) {\
 			.v_char = v_char_,\
 			.color = color_,\
 		};\
 	} while (0)
 
-#define SET_PIXEL(tgl, x, y, z, v_char_, color_)\
+#define SET_PIXEL(tgl_, x_, y_, z_, v_char_, color_)\
 	do {\
-		if (!tgl->z_buffer_enabled) {\
-			SET_PIXEL_RAW(tgl, x, y, v_char_, color_);\
-		} else if (z >= tgl->z_buffer[y * tgl->width + x]) {\
-			SET_PIXEL_RAW(tgl, x, y, v_char_, color_);\
-			tgl->z_buffer[y * tgl->width + x] = z;\
+		if (!tgl_->z_buffer_enabled) {\
+			SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_);\
+		} else if (z_ >= tgl_->z_buffer[y_ * tgl_->width + x_]) {\
+			SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_);\
+			tgl->z_buffer[y_ * tgl->width + x_] = z_;\
 		}\
 	} while (0)
 
-#define INTENSITY_TO_CHAR(tgl, intensity) tgl->gradient->grad[(tgl->gradient->length * intensity) / 256u]
+#define INTENSITY_TO_CHAR(tgl_, intensity_) tgl_->gradient->grad[(tgl_->gradient->length * intensity_) / 256u]
 
 const char grad_full_chars[] = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 const TGLGradient gradient_full = {
@@ -184,7 +184,7 @@ void tgl_flush(TGL *tgl)
         memcpy(output_buffer_loc, color_codes[TGL_WHITE], 7);
         output_buffer_loc += 7;
         memcpy(output_buffer_loc, color_codes_bkg[TGL_BLACK_BKG], 5);
-		puts(tgl->output_buffer);
+	puts(tgl->output_buffer);
 	} else {
 		for (row = 0; row < tgl->height; row++) {
 			for (col = 0; col < tgl->width; col++) {
@@ -200,8 +200,8 @@ void tgl_flush(TGL *tgl)
 			}
 			putchar('\n');
 		}
-        fputs(color_codes[TGL_WHITE], stdout);
-        fputs(color_codes_bkg[TGL_BLACK_BKG], stdout);
+		fputs(color_codes[TGL_WHITE], stdout);
+		fputs(color_codes_bkg[TGL_BLACK_BKG], stdout);
 	}
 
 	fflush(stdout);
@@ -560,6 +560,12 @@ void tgl_enable(TGL *tgl, TGLubyte settings)
 		tgl_clear(tgl, TGL_Z_BUFFER);
 	}
 	if (settings & TGL_OUTPUT_BUFFER) {
+		/* Chars for foreground color: 7
+		 * Chars for background color: 6
+		 * Maximum 14 chars per pixel: foreground + background + char
+		 * 1 Newline character per line
+		 * 13 Additional characters for resetting colors after flush
+		 */
 		tgl->output_buffer_size = 14 * tgl->frame_size + tgl->height + 13;
 		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
 		tgl_clear(tgl, TGL_OUTPUT_BUFFER);
