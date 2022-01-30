@@ -6,7 +6,7 @@ extern "C"{
 #endif
 
 #define TGL_VERSION_MAJOR 1
-#define TGL_VERSION_MINOR 0
+#define TGL_VERSION_MINOR 1
 
 #include <stdbool.h>
 
@@ -18,7 +18,7 @@ extern "C"{
 /**
  * Setting MACROs
  */
-#define TGL_CLEAR_SCREEN puts("\033[1;1H\033[2J")
+#define TGL_CLEAR_SCREEN do {puts("\033[1;1H\033[2J");} while (0)
 #define TGL_TYPEOF __typeof__
 #define TGL_MALLOC malloc
 #define TGL_FREE free
@@ -115,24 +115,24 @@ void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, 
 #define TGL_CW  0x00
 #define TGL_CCW 0x02
 
-#define TGL_ROTATION_MATRIX(x, y, z) {\
-		{cosf(z) * cosf(y), -sinf(z) * cosf(x) + cosf(z) * sinf(y) * sinf(x), sinf(z) * sinf(x) + cosf(z) * sinf(y) * cosf(x), 0.f},\
-		{sinf(z) * cosf(y), cosf(z) * cosf(x) + sinf(z) * sinf(y) * sinf(x), -cosf(z) * sinf(x) + sinf(z) * sinf(y) * cosf(x), 0.f},\
-		{-sinf(y), cosf(y) * sinf(x), cosf(y) * cosf(x), 0.f},\
+#define TGL_ROTATION_MATRIX(x_, y_, z_) {\
+		{cosf(z_) * cosf(y_), -sinf(z_) * cosf(x_) + cosf(z_) * sinf(y_) * sinf(x_), sinf(z_) * sinf(x_) + cosf(z_) * sinf(y_) * cosf(x_), 0.f},\
+		{sinf(z_) * cosf(y_), cosf(z_) * cosf(x_) + sinf(z_) * sinf(y_) * sinf(x_), -cosf(z_) * sinf(x_) + sinf(z_) * sinf(y_) * cosf(x_), 0.f},\
+		{-sinf(y_), cosf(y_) * sinf(x_), cosf(y_) * cosf(x_), 0.f},\
 		{0.f, 0.f, 0.f, 1.f},\
 	}
 
-#define TGL_SCALE_MATRIX(x, y, z) {\
-		{x,   0.f, 0.f, 0.f},\
-		{0.f, y,   0.f, 0.f},\
-		{0.f, 0.f, z,   0.f},\
+#define TGL_SCALE_MATRIX(x_, y_, z_) {\
+		{x_,   0.f, 0.f, 0.f},\
+		{0.f, y_,   0.f, 0.f},\
+		{0.f, 0.f, z_,   0.f},\
 		{0.f, 0.f, 0.f, 1.f},\
 	}
 
-#define TGL_TRANSLATE_MATRIX(x, y, z) {\
-		{1.f, 0.f, 0.f, x},\
-		{0.f, 1.f, 0.f, y},\
-		{0.f, 0.f, 1.f, z},\
+#define TGL_TRANSLATE_MATRIX(x_, y_, z_) {\
+		{1.f, 0.f, 0.f, x_},\
+		{0.f, 1.f, 0.f, y_},\
+		{0.f, 0.f, 1.f, z_},\
 		{0.f, 0.f, 0.f, 1.f},\
 	}
 
@@ -246,6 +246,20 @@ void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3
  * Reads up to count bytes from raw terminal input into buf
  */
 TGL_SSIZE_T tglutil_read(char *buf, size_t count);
+
+/**
+ * Stores number of console columns and rows in *col and *row respectively
+ * @param screen_buffer: true for size of screen buffer, false for size of window. On UNIX, value is ignored and assumed true.
+ * @return 0 on success, -1 on failure
+ */
+int tglutil_get_console_size(unsigned *col, unsigned *row, bool screen_buffer);
+
+/**
+ * Sets console size
+ * Only changes printable area and will not change window size if new size is larger than window
+ * @return 0 on success, -1 on failure
+ */
+int tglutil_set_console_size(unsigned col, unsigned row);
 
 #endif /* TERMGLUTIL */
 

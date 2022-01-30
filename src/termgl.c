@@ -18,7 +18,7 @@ typedef struct Pixel {
 	TGLubyte color;
 } Pixel;
 
-typedef struct TGL {
+struct TGL {
 	unsigned width;
 	unsigned height;
 	int max_x;
@@ -34,32 +34,32 @@ typedef struct TGL {
 #ifdef TERMGL3D
 	TGL3D *tgl3d;
 #endif
-} TGL;
+};
 
-#define SWAP(a, b) do {TGL_TYPEOF(a) temp = a; a = b; b = temp;} while(0)
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
-#define XOR(a, b) (((bool)(a))!=((bool)(b)))
+#define SWAP(a_, b_) do {TGL_TYPEOF(a_) temp_ = a_; a_ = b_; b_ = temp_;} while(0)
+#define MIN(a_, b_) (((a_)<(b_))?(a_):(b_))
+#define MAX(a_, b_) (((a_)>(b_))?(a_):(b_))
+#define XOR(a_, b_) (((bool)(a_))!=((bool)(b_)))
 
-#define SET_PIXEL_RAW(tgl, x, y, v_char_, color_)\
+#define SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_)\
 	do {\
-		*(&tgl->frame_buffer[y * tgl->width + x]) = (Pixel) {\
+		*(&tgl_->frame_buffer[y_ * tgl->width + x_]) = (Pixel) {\
 			.v_char = v_char_,\
 			.color = color_,\
 		};\
 	} while (0)
 
-#define SET_PIXEL(tgl, x, y, z, v_char_, color_)\
+#define SET_PIXEL(tgl_, x_, y_, z_, v_char_, color_)\
 	do {\
-		if (!tgl->z_buffer_enabled) {\
-			SET_PIXEL_RAW(tgl, x, y, v_char_, color_);\
-		} else if (z >= tgl->z_buffer[y * tgl->width + x]) {\
-			SET_PIXEL_RAW(tgl, x, y, v_char_, color_);\
-			tgl->z_buffer[y * tgl->width + x] = z;\
+		if (!tgl_->z_buffer_enabled) {\
+			SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_);\
+		} else if (z_ >= tgl_->z_buffer[y_ * tgl_->width + x_]) {\
+			SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_);\
+			tgl->z_buffer[y_ * tgl->width + x_] = z_;\
 		}\
 	} while (0)
 
-#define INTENSITY_TO_CHAR(tgl, intensity) tgl->gradient->grad[(tgl->gradient->length * intensity) / 256u]
+#define INTENSITY_TO_CHAR(tgl_, intensity_) tgl_->gradient->grad[(tgl_->gradient->length * intensity_) / 256u]
 
 const char grad_full_chars[] = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 const TGLGradient gradient_full = {
@@ -184,7 +184,7 @@ void tgl_flush(TGL *tgl)
         memcpy(output_buffer_loc, color_codes[TGL_WHITE], 7);
         output_buffer_loc += 7;
         memcpy(output_buffer_loc, color_codes_bkg[TGL_BLACK_BKG], 5);
-		puts(tgl->output_buffer);
+	puts(tgl->output_buffer);
 	} else {
 		for (row = 0; row < tgl->height; row++) {
 			for (col = 0; col < tgl->width; col++) {
@@ -200,8 +200,8 @@ void tgl_flush(TGL *tgl)
 			}
 			putchar('\n');
 		}
-        fputs(color_codes[TGL_WHITE], stdout);
-        fputs(color_codes_bkg[TGL_BLACK_BKG], stdout);
+		fputs(color_codes[TGL_WHITE], stdout);
+		fputs(color_codes_bkg[TGL_BLACK_BKG], stdout);
 	}
 
 	fflush(stdout);
@@ -219,8 +219,8 @@ void tgl_puts(TGL *tgl, int x, int y, char *str, TGLubyte color)
 	char *c_ptr = str;
 	while (*c_ptr) {
 		SET_PIXEL_RAW(tgl, x, y, *c_ptr, color);
-        x++;
-        itgl_clip(tgl, &x, &y);
+		x++;
+		itgl_clip(tgl, &x, &y);
 		c_ptr++;
 	}
 }
@@ -560,6 +560,12 @@ void tgl_enable(TGL *tgl, TGLubyte settings)
 		tgl_clear(tgl, TGL_Z_BUFFER);
 	}
 	if (settings & TGL_OUTPUT_BUFFER) {
+		/* Chars for foreground color: 7
+		 * Chars for background color: 6
+		 * Maximum 14 chars per pixel: foreground + background + char
+		 * 1 Newline character per line
+		 * 13 Additional characters for resetting colors after flush
+		 */
 		tgl->output_buffer_size = 14 * tgl->frame_size + tgl->height + 13;
 		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
 		tgl_clear(tgl, TGL_OUTPUT_BUFFER);
@@ -596,7 +602,7 @@ void tgl_delete(TGL *tgl)
 
 #include <math.h>
 
-typedef struct TGL3D {
+struct TGL3D {
 	TGLubyte settings;
 	float aspect_ratio;
 	float half_width;
@@ -604,7 +610,7 @@ typedef struct TGL3D {
 
 	TGLTransform transform;
 	TGLMat projection;
-} TGL3D;
+};
 
 #define TGL_CULL_BIT 0x01
 
@@ -987,6 +993,7 @@ TGLTransform *tgl3d_get_transform(TGL *tgl)
 
 #ifdef __unix__
 #include <termios.h>
+#include <sys/ioctl.h>
 #endif
 
 TGL_SSIZE_T tglutil_read(char *buf, size_t count)
@@ -1021,7 +1028,7 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count)
 	DWORD event_cnt;
 	GetNumberOfConsoleInputEvents(hInputHandle, &event_cnt);
 
-	// ReadConsole is blocking to must manually process events
+	// ReadConsole is blocking so must manually process events
 	size_t retval = 0;
 	if (event_cnt) {
 		INPUT_RECORD input_records[32];
@@ -1041,5 +1048,46 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count)
 #endif
 	return retval;
 }
+
+int tglutil_get_console_size(unsigned *col, unsigned *row, bool screen_buffer)
+{
+#ifdef __unix__
+	(void)screen_buffer;
+	struct winsize w;
+	int retval = ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+	*col = w.ws_col;
+	*row = w.ws_row;
+#else /* defined(TGL_OS_WINDOWS) */
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	int retval = GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi) ? 0 : -1;
+	if (screen_buffer) {
+		*col = csbi.dwSize.X;
+		*row = csbi.dwSize.Y;
+	} else {
+		*col = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+		*row = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+	}
+#endif
+	return retval;
+}
+
+int tglutil_set_console_size(unsigned col, unsigned row)
+{
+#ifdef __unix__
+	struct winsize w = (struct winsize) {
+		.ws_row = row,
+		.ws_col = col,
+	};
+	int retval = ioctl(STDOUT_FILENO, TIOCSWINSZ, &w);
+#else /* defined(TGL_OS_WINDOWS) */
+	COORD size = (COORD) {
+		.Y = row,
+		.X = col,
+	};
+	int retval = SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), size) ? 0 : -1;
+#endif
+	return retval;
+}
+
 
 #endif /* TERMGLUTIL */
