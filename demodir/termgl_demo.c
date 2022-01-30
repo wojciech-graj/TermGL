@@ -25,7 +25,8 @@ typedef struct  STLTriangle {
 #define xstr(str_) str(str_)
 #define str(str_) #str_
 
-const char *HELPTEXT = "TermGL v" xstr(TGL_VERSION_MAJOR) "." xstr(TGL_VERSION_MINOR) "\n\
+const char *HELPTEXT_HEADER = "TermGL v" xstr(TGL_VERSION_MAJOR) "." xstr(TGL_VERSION_MINOR) " Demo Utility";
+const char *HELPTEXT_BODY = "\
 Select a Demo:\n\
 1. Utah Teapot\n\
     Renders a rotating 3D Utah Teapot.\n\
@@ -34,7 +35,7 @@ Select a Demo:\n\
 3. Mandelbrot\n\
     Renders an infinitely zooming-in Mandelbrot set.\n\
 4. Realtime Keyboard\n\
-    Displays keyboard input in realtime.\n\
+    Displays keyboard input in realtime.\
 ";
 
 void teapot_intermediate_shader(TGLTriangle *trig, void *data);
@@ -322,12 +323,19 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 	tgl_delete(tgl);
 }
 
+#include <windows.h>
+
 int main(int argc, char **argv)
 {
 	(void)argc;
 	(void)argv;
 
-	puts(HELPTEXT);
+	puts(HELPTEXT_HEADER);
+	unsigned col, row;
+	tglutil_get_console_size(&col, &row, true);
+	printf("Console size: %ux%u\n", col, row);
+	puts(HELPTEXT_BODY);
+
 	unsigned n = 0;
 	assert(scanf("%u", &n) == 1);
 
