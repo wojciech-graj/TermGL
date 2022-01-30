@@ -219,8 +219,8 @@ void tgl_puts(TGL *tgl, int x, int y, char *str, TGLubyte color)
 	char *c_ptr = str;
 	while (*c_ptr) {
 		SET_PIXEL_RAW(tgl, x, y, *c_ptr, color);
-        x++;
-        itgl_clip(tgl, &x, &y);
+		x++;
+		itgl_clip(tgl, &x, &y);
 		c_ptr++;
 	}
 }
@@ -1021,7 +1021,7 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count)
 	DWORD event_cnt;
 	GetNumberOfConsoleInputEvents(hInputHandle, &event_cnt);
 
-	// ReadConsole is blocking to must manually process events
+	// ReadConsole is blocking so must manually process events
 	size_t retval = 0;
 	if (event_cnt) {
 		INPUT_RECORD input_records[32];

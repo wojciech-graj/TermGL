@@ -16,11 +16,11 @@ Can read from terminal for user-interaction.
 
 ## Gallery
 
-![LOGO](test/logo.gif)
+![LOGO](demodir/logo.gif)
 
-![CANYON](test/canyon.gif)
+![CANYON](demodir/canyon.gif)
 
-![TEAPOT](test/teapot.gif)
+![TEAPOT](demodir/teapot.gif)
 
 ## Build
 
@@ -57,12 +57,36 @@ If compiling using mingw on linux, use ```COMPILER=i686-w64-mingw32-gcc-win32```
 
 ### Demo
 
-To compile a demo program, run the makefile ```make demo```. Use the ```a``` and ```d``` keys to rotate view in the demo.
+To compile a demo program, run the makefile ```make demo```.
 
 ## Documentation
 
 Certain settings can be changed at the top of [lib/termgl.h](lib/termgl.h) prior to compilation, e.g. memory allocation functions, clear screen command, compiler-specific commands.\
-A sample program exists here: [test/termgl_test.c](test/termgl_test.c), and utilizes all major features of the TermGL library.\
 The header file [lib/termgl.h](lib/termgl.h) contains brief documentation for all functions and structs.\
 Compiler-specific (GCC) macros are used for loop unrolling in the ```itgl_mulmat``` and ```itgl_clip_triangle_plane``` functions.\
 The TermGLUtil extension contains functions for reading keyboard input, but requires either Windows of UNIX headers.
+
+### Demo
+
+A demo can be found here: [demodir/termgl_demo.c](demodir/termgl_demo.c).\
+Available demos and TermGL features used:
+1. Utah Teapot\
+Renders a rotating 3D Utah Teapot.
+	- Backface culling
+	- Z buffering
+	- Double-width characters
+	- 3D camera
+	- 3D transformations
+	- 3D rendering
+	- 3D Shaders
+2. Star Polygon\
+Renders a star polygon in steps using random colors.
+	- Colors
+	- Line rendering
+3. Mandelbrot\
+Renders an infinitely zooming-in Mandelbrot set.
+	- Point rendering
+4. Realtime Keyboard\
+Displays keyboard input in realtime.
+	- Text rendering
+	- Realtime keyboard input
