@@ -181,10 +181,10 @@ void tgl_flush(TGL *tgl)
 			}
 			*(output_buffer_loc++) = '\n';
 		}
-        memcpy(output_buffer_loc, color_codes[TGL_WHITE], 7);
-        output_buffer_loc += 7;
-        memcpy(output_buffer_loc, color_codes_bkg[TGL_BLACK_BKG], 5);
-	puts(tgl->output_buffer);
+		memcpy(output_buffer_loc, color_codes[TGL_WHITE], 7);
+		output_buffer_loc += 7;
+		memcpy(output_buffer_loc, color_codes_bkg[TGL_BLACK_BKG], 5);
+		fputs(tgl->output_buffer, stdout);
 	} else {
 		for (row = 0; row < tgl->height; row++) {
 			for (col = 0; col < tgl->width; col++) {

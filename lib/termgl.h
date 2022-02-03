@@ -18,7 +18,7 @@ extern "C"{
 /**
  * Setting MACROs
  */
-#define TGL_CLEAR_SCREEN do {puts("\033[1;1H\033[2J");} while (0)
+#define TGL_CLEAR_SCREEN do {fputs("\033[1;1H\033[2J", stdout);} while (0)
 #define TGL_TYPEOF __typeof__
 #define TGL_MALLOC malloc
 #define TGL_FREE free
