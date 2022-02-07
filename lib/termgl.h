@@ -9,6 +9,7 @@ extern "C"{
 #define TGL_VERSION_MINOR 1
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #if defined(_WIN32) || defined(WIN32)
 #define TGL_OS_WINDOWS
@@ -42,8 +43,12 @@ enum /* colors */ {
 	TGL_PURPLE_BKG = 0x50,
 	TGL_CYAN_BKG = 0x60,
 	TGL_WHITE_BKG = 0x70,
-/* modifiers */
-	TGL_BOLD = 0x08,
+/* non-exclusive modifiers */
+	TGL_HIGH_INTENSITY = 0x08,
+	TGL_HIGH_INTENSITY_BKG = 0x80,
+/* exclusive modifiers */
+	TGL_BOLD = 0x100,
+	TGL_UNDERLINE = 0x200,
 };
 
 enum {
@@ -107,14 +112,14 @@ void tgl_disable(TGL *tgl, TGLubyte settings);
 /**
  * Various drawing functions
  * @param i: intensity of pixel which will be mapped to character on gradient
- * @param color: bitwise combination of colors defined in above enum. Can use one foreground (TGL_COLOR) and one background (TGL_COLOR_BKG), and one modifier
+ * @param color: bitwise combination of colors defined in above enum. Can use one foreground (TGL_COLOR) and one background (TGL_COLOR_BKG), and any modifiers
  */
-void tgl_putchar(TGL *tgl, int x, int y, char c, TGLubyte color);
-void tgl_puts(TGL *tgl, int x, int y, char *str, TGLubyte color);
-void tgl_point(TGL *tgl, int x, int y, float z, TGLubyte i, TGLubyte color);
-void tgl_line(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, TGLubyte color);
-void tgl_triangle(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, TGLubyte color);
-void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, TGLubyte color);
+void tgl_putchar(TGL *tgl, int x, int y, char c, uint16_t color);
+void tgl_puts(TGL *tgl, int x, int y, char *str, uint16_t color);
+void tgl_point(TGL *tgl, int x, int y, float z, TGLubyte i, uint16_t color);
+void tgl_line(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, uint16_t color);
+void tgl_triangle(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, uint16_t color);
+void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, uint16_t color);
 
 #ifdef TERMGL3D
 
@@ -221,7 +226,7 @@ void tgl3d_cull_face(TGL *tgl, TGLubyte settings);
  * @param intermediate_shader: (allow NULL) pointer to a shader function which is executed after vertex shader (projection and clipping) and before fragment shader (drawing onto framebuffer). Parameters are a projected triangle from vertex shader, and optional data. See termgl_test.c for example
  * @param data: (allow NULL) data which is passed to intermediate_shader
  */
-void tgl3d_shader(TGL *tgl, TGLTriangle *in, TGLubyte color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle*, void*));
+void tgl3d_shader(TGL *tgl, TGLTriangle *in, uint16_t color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle*, void*));
 
 /**
  * Various functions to edit TGLTransform matrices

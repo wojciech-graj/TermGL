@@ -15,7 +15,7 @@ typedef struct TGL3D TGL3D;
 
 typedef struct Pixel {
 	char v_char;
-	TGLubyte color;
+	uint16_t color;
 } Pixel;
 
 struct TGL {
@@ -74,23 +74,23 @@ const TGLGradient gradient_min = {
 };
 
 const char *color_codes[] = {
-	[TGL_BLACK] =      "\033[0;30m",
-	[TGL_RED] =        "\033[0;31m",
-	[TGL_GREEN] =      "\033[0;32m",
-	[TGL_YELLOW] =     "\033[0;33m",
-	[TGL_BLUE] =       "\033[0;34m",
-	[TGL_PURPLE] =     "\033[0;35m",
-	[TGL_CYAN] =       "\033[0;36m",
-	[TGL_WHITE] =      "\033[0;37m",
+	[TGL_BLACK] =      "30m",
+	[TGL_RED] =        "31m",
+	[TGL_GREEN] =      "32m",
+	[TGL_YELLOW] =     "33m",
+	[TGL_BLUE] =       "34m",
+	[TGL_PURPLE] =     "35m",
+	[TGL_CYAN] =       "36m",
+	[TGL_WHITE] =      "37m",
 
-	[TGL_BLACK | TGL_BOLD] =        "\033[1;30m",
-	[TGL_RED | TGL_BOLD] =          "\033[1;31m",
-	[TGL_GREEN | TGL_BOLD] =        "\033[1;32m",
-	[TGL_YELLOW | TGL_BOLD] =       "\033[1;33m",
-	[TGL_BLUE | TGL_BOLD] =         "\033[1;34m",
-	[TGL_PURPLE | TGL_BOLD] =       "\033[1;35m",
-	[TGL_CYAN | TGL_BOLD] =         "\033[1;36m",
-	[TGL_WHITE | TGL_BOLD] =        "\033[1;37m",
+	[TGL_BLACK | TGL_HIGH_INTENSITY] =	"90m",
+	[TGL_RED | TGL_HIGH_INTENSITY] =        "91m",
+	[TGL_GREEN | TGL_HIGH_INTENSITY] =      "92m",
+	[TGL_YELLOW | TGL_HIGH_INTENSITY] =     "93m",
+	[TGL_BLUE | TGL_HIGH_INTENSITY] =       "94m",
+	[TGL_PURPLE | TGL_HIGH_INTENSITY] =     "95m",
+	[TGL_CYAN | TGL_HIGH_INTENSITY] =       "96m",
+	[TGL_WHITE | TGL_HIGH_INTENSITY] =      "97m",
 };
 
 const char *color_codes_bkg[] = {
@@ -102,10 +102,25 @@ const char *color_codes_bkg[] = {
 	[TGL_PURPLE_BKG >> 4] = "\033[45m",
 	[TGL_CYAN_BKG >> 4] =   "\033[46m",
 	[TGL_WHITE_BKG >> 4] =  "\033[47m",
+
+	[(TGL_BLACK_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =       "\033[100m",
+	[(TGL_RED_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =         "\033[101m",
+	[(TGL_GREEN_BKG | TGL_HIGH_INTENSITY_BKG)  >> 4] =      "\033[102m",
+	[(TGL_YELLOW_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =      "\033[103m",
+	[(TGL_BLUE_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =        "\033[104m",
+	[(TGL_PURPLE_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =      "\033[105m",
+	[(TGL_CYAN_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =        "\033[106m",
+	[(TGL_WHITE_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =       "\033[107m",
+};
+
+const char *modifier_codes[] = {
+	[0] =                   "\033[0;",
+	[TGL_BOLD >> 8] =       "\033[1;",
+	[TGL_UNDERLINE >> 8] =  "\033[4;",
 };
 
 void itgl_clip(TGL *tgl, int *x, int *y);
-void itgl_horiz_line(TGL *tgl, int x0, float z0, TGLubyte i0, int x1, float z1, TGLubyte i1, int y, const TGLubyte color);
+void itgl_horiz_line(TGL *tgl, int x0, float z0, TGLubyte i0, int x1, float z1, TGLubyte i1, int y, const uint16_t color);
 
 inline void itgl_clip(TGL *tgl, int *x, int *y)
 {
@@ -120,7 +135,7 @@ void tgl_clear(TGL *tgl, const TGLubyte buffers)
 		for (i = 0; i < tgl->frame_size; i++) {
 			*(&tgl->frame_buffer[i]) = (Pixel) {
 				.v_char = ' ',
-				.color = 0x00
+				.color = 0x0000
 			};
 		}
 	}
@@ -167,7 +182,7 @@ TGL *tgl_init(const unsigned width, const unsigned height, const TGLGradient *gr
 void tgl_flush(TGL *tgl)
 {
 	TGL_CLEAR_SCREEN;
-	TGLubyte color = 0xFF;
+	uint16_t color = 0x0FFF;
 	unsigned row, col;
 	Pixel *pixel = tgl->frame_buffer;
 	bool double_chars = tgl->settings & TGL_DOUBLE_CHARS;
@@ -178,10 +193,13 @@ void tgl_flush(TGL *tgl)
 			for (col = 0; col < tgl->width; col++) {
 				if (color != pixel->color) {
 					color = pixel->color;
-					memcpy(output_buffer_loc, color_codes[color & 0x0F], 7);
-					output_buffer_loc += 7;
-					memcpy(output_buffer_loc, color_codes_bkg[color >> 4], 5);
-					output_buffer_loc += 5;
+					memcpy(output_buffer_loc, modifier_codes[(color & 0x0F00) >> 8], 7);
+					output_buffer_loc += 4;
+					memcpy(output_buffer_loc, color_codes[color & 0x000F], 7);
+					output_buffer_loc += 3;
+					unsigned bkg_len = color & TGL_HIGH_INTENSITY_BKG ? 6 : 5;
+					memcpy(output_buffer_loc, color_codes_bkg[(color & 0x00F0) >> 4], bkg_len);
+					output_buffer_loc += bkg_len;
 				}
 				*(output_buffer_loc++) = pixel->v_char;
 				if (double_chars)
@@ -190,17 +208,20 @@ void tgl_flush(TGL *tgl)
 			}
 			*(output_buffer_loc++) = '\n';
 		}
+		memcpy(output_buffer_loc, modifier_codes[0], 7);
+		output_buffer_loc += 4;
 		memcpy(output_buffer_loc, color_codes[TGL_WHITE], 7);
-		output_buffer_loc += 7;
-		memcpy(output_buffer_loc, color_codes_bkg[TGL_BLACK_BKG], 5);
+		output_buffer_loc += 5;
+		memcpy(output_buffer_loc, color_codes_bkg[TGL_BLACK_BKG >> 4], 5);
 		fputs(tgl->output_buffer, stdout);
 	} else {
 		for (row = 0; row < tgl->height; row++) {
 			for (col = 0; col < tgl->width; col++) {
 				if (color != pixel->color) {
 					color = pixel->color;
-					fputs(color_codes[color & 0x0F], stdout);
-					fputs(color_codes_bkg[color >> 4], stdout);
+					fputs(modifier_codes[(color & 0x0F00) >> 8], stdout);
+					fputs(color_codes[color & 0x000F], stdout);
+					fputs(color_codes_bkg[(color & 0x00F0) >> 4], stdout);
 				}
 				putchar(pixel->v_char);
 				if (double_chars)
@@ -209,20 +230,21 @@ void tgl_flush(TGL *tgl)
 			}
 			putchar('\n');
 		}
+		fputs(modifier_codes[0], stdout);
 		fputs(color_codes[TGL_WHITE], stdout);
-		fputs(color_codes_bkg[TGL_BLACK_BKG], stdout);
+		fputs(color_codes_bkg[TGL_BLACK_BKG >> 4], stdout);
 	}
 
 	fflush(stdout);
 }
 
-void tgl_putchar(TGL *tgl, int x, int y, char c, TGLubyte color)
+void tgl_putchar(TGL *tgl, int x, int y, char c, uint16_t color)
 {
 	itgl_clip(tgl, &x, &y);
 	SET_PIXEL_RAW(tgl, x, y, c, color);
 }
 
-void tgl_puts(TGL *tgl, int x, int y, char *str, TGLubyte color)
+void tgl_puts(TGL *tgl, int x, int y, char *str, uint16_t color)
 {
 	itgl_clip(tgl, &x, &y);
 	char *c_ptr = str;
@@ -234,14 +256,14 @@ void tgl_puts(TGL *tgl, int x, int y, char *str, TGLubyte color)
 	}
 }
 
-void tgl_point(TGL *tgl, int x, int y, float z, TGLubyte i, TGLubyte color)
+void tgl_point(TGL *tgl, int x, int y, float z, TGLubyte i, uint16_t color)
 {
 	itgl_clip(tgl, &x, &y);
 	SET_PIXEL(tgl, x, y, z, INTENSITY_TO_CHAR(tgl, i), color);
 }
 
 //Bresenham's line algorithm
-void tgl_line(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, const TGLubyte color)
+void tgl_line(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, const uint16_t color)
 {
 	itgl_clip(tgl, &x0, &y0);
 	itgl_clip(tgl, &x1, &y1);
@@ -306,14 +328,14 @@ void tgl_line(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, f
 	}
 }
 
-void tgl_triangle(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, const TGLubyte color)
+void tgl_triangle(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, const uint16_t color)
 {
 	tgl_line(tgl, x0, y0, z0, i0, x1, y1, z1, i1, color);
 	tgl_line(tgl, x1, y1, z1, i1, x2, y2, z2, i2, color);
 	tgl_line(tgl, x2, y2, z2, i2, x0, y0, z0, i0, color);
 }
 
-void itgl_horiz_line(TGL *tgl, int x0, float z0, TGLubyte i0, int x1, float z1, TGLubyte i1, int y, const TGLubyte color)
+void itgl_horiz_line(TGL *tgl, int x0, float z0, TGLubyte i0, int x1, float z1, TGLubyte i1, int y, const uint16_t color)
 {
 	if (x0 == x1) {
 		SET_PIXEL(tgl, x0, y, z0, INTENSITY_TO_CHAR(tgl, i0), color);
@@ -330,7 +352,7 @@ void itgl_horiz_line(TGL *tgl, int x0, float z0, TGLubyte i0, int x1, float z1, 
 
 //Solution based on Bresenham's line algorithm
 //adapted from: https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h
-void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, const TGLubyte color)
+void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, const uint16_t color)
 {
 	itgl_clip(tgl, &x0, &y0);
 	itgl_clip(tgl, &x1, &y1);
@@ -569,13 +591,12 @@ void tgl_enable(TGL *tgl, TGLubyte settings)
 		tgl_clear(tgl, TGL_Z_BUFFER);
 	}
 	if (settings & TGL_OUTPUT_BUFFER) {
-		/* Chars for foreground color: 7
-		 * Chars for background color: 6
-		 * Maximum 14 chars per pixel: foreground + background + char
+		/* Chars for text or background color: 7
+		 * Maximum 15 chars per pixel: foreground + background + char
 		 * 1 Newline character per line
 		 * 13 Additional characters for resetting colors after flush
 		 */
-		tgl->output_buffer_size = 14 * tgl->frame_size + tgl->height + 13;
+		tgl->output_buffer_size = 15 * tgl->frame_size + tgl->height + 13;
 		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
 		tgl_clear(tgl, TGL_OUTPUT_BUFFER);
 	}
@@ -900,7 +921,7 @@ unsigned itgl_clip_triangle_plane(const TGLVec3 normal, TGLTriangle *in, TGLTria
 	return 0;
 }
 
-void tgl3d_shader(TGL *tgl, TGLTriangle *in, TGLubyte color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle*, void*))
+void tgl3d_shader(TGL *tgl, TGLTriangle *in, uint16_t color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle*, void*))
 {
 	TGL3D *tgl3d = tgl->tgl3d;
 
