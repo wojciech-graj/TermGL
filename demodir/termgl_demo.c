@@ -305,7 +305,9 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 		TGLubyte i0 = rand() % 256;
 		TGLubyte i1 = rand() % 256;
 
-		TGLubyte color = fg_colors[rand() % 8] | bkg_colors[rand() % 8];
+		TGLubyte color = fg_colors[rand() % 8]
+			| bkg_colors[rand() % 8]
+			| (rand() % 2 ? TGL_BOLD : 0);
 
 		tgl_line(tgl, x0, y0, 0, i0, x1, y1, 0, i1, color);
 
@@ -339,7 +341,7 @@ int main(int argc, char **argv)
 
 	switch (n) {
 	case 1u:
-		demo_teapot(80, 40, 33);
+		demo_teapot(40, 40, 33);
 		break;
 	case 2u:
 		demo_color(80, 40, 500);

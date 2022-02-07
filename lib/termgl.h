@@ -23,7 +23,8 @@ extern "C"{
 #define TGL_MALLOC malloc
 #define TGL_FREE free
 
-enum /*colors*/ {
+enum /* colors */ {
+/* text colors */
 	TGL_BLACK = 0x00,
 	TGL_RED = 0x01,
 	TGL_GREEN = 0x02,
@@ -32,6 +33,7 @@ enum /*colors*/ {
 	TGL_PURPLE = 0x05,
 	TGL_CYAN = 0x06,
 	TGL_WHITE = 0x07,
+/* highlight colors */
 	TGL_BLACK_BKG = 0x00,
 	TGL_RED_BKG = 0x10,
 	TGL_GREEN_BKG = 0x20,
@@ -40,12 +42,21 @@ enum /*colors*/ {
 	TGL_PURPLE_BKG = 0x50,
 	TGL_CYAN_BKG = 0x60,
 	TGL_WHITE_BKG = 0x70,
+/* modifiers */
+	TGL_BOLD = 0x08,
 };
 
-#define TGL_FRAME_BUFFER 0x01
-#define TGL_Z_BUFFER 0x40
-#define TGL_OUTPUT_BUFFER 0x20
-#define TGL_DOUBLE_CHARS 0x80
+enum {
+/* buffers */
+	TGL_FRAME_BUFFER = 0x01,
+	TGL_OUTPUT_BUFFER  = 0x02,
+	TGL_Z_BUFFER = 0x04,
+/* settings */
+	TGL_DOUBLE_CHARS = 0x10,
+#ifdef TERMGL3D
+	TGL_CULL_FACE = 0x20,
+#endif
+};
 
 typedef unsigned char TGLubyte;
 
@@ -96,7 +107,7 @@ void tgl_disable(TGL *tgl, TGLubyte settings);
 /**
  * Various drawing functions
  * @param i: intensity of pixel which will be mapped to character on gradient
- * @param color: bitwise combination of colors defined in above enum. Can use one foreground (TGL_COLOR) and one background (TGL_COLOR_BKG)
+ * @param color: bitwise combination of colors defined in above enum. Can use one foreground (TGL_COLOR) and one background (TGL_COLOR_BKG), and one modifier
  */
 void tgl_putchar(TGL *tgl, int x, int y, char c, TGLubyte color);
 void tgl_puts(TGL *tgl, int x, int y, char *str, TGLubyte color);
@@ -107,13 +118,15 @@ void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, 
 
 #ifdef TERMGL3D
 
-#define TGL_CULL_FACE 0x01
+enum /* faces */ {
+	TGL_BACK = 0x00,
+	TGL_FRONT = 0x01,
+};
 
-#define TGL_BACK  0x00
-#define TGL_FRONT 0x01
-
-#define TGL_CW  0x00
-#define TGL_CCW 0x02
+enum /* winding */ {
+	TGL_CW = 0x00,
+	TGL_CCW = 0x02,
+};
 
 #define TGL_ROTATION_MATRIX(x_, y_, z_) {\
 		{cosf(z_) * cosf(y_), -sinf(z_) * cosf(x_) + cosf(z_) * sinf(y_) * sinf(x_), sinf(z_) * sinf(x_) + cosf(z_) * sinf(y_) * cosf(x_), 0.f},\
