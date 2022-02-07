@@ -43,11 +43,10 @@ enum /* colors */ {
 	TGL_PURPLE_BKG = 0x50,
 	TGL_CYAN_BKG = 0x60,
 	TGL_WHITE_BKG = 0x70,
-/* non-exclusive modifiers */
+/* modifiers */
 	TGL_HIGH_INTENSITY = 0x08,
 	TGL_HIGH_INTENSITY_BKG = 0x80,
-/* exclusive modifiers */
-	TGL_BOLD = 0x100,
+	TGL_BOLD = 0x100, /* Often equivalent to TGL_HIGH_INTENSITY */
 	TGL_UNDERLINE = 0x200,
 };
 
