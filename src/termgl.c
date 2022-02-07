@@ -59,7 +59,7 @@ struct TGL {
 		}\
 	} while (0)
 
-#define INTENSITY_TO_CHAR(tgl_, intensity_) tgl_->gradient->grad[(tgl_->gradient->length * intensity_) / 256u]
+#define INTENSITY_TO_CHAR(tgl_, intensity_) tgl_->gradient->grad[tgl_->gradient->length * intensity_ / 256u]
 
 const char grad_full_chars[] = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 const TGLGradient gradient_full = {
@@ -82,12 +82,21 @@ const char *color_codes[] = {
 	[TGL_PURPLE] =     "\033[0;35m",
 	[TGL_CYAN] =       "\033[0;36m",
 	[TGL_WHITE] =      "\033[0;37m",
+
+	[TGL_BLACK | TGL_BOLD] =        "\033[1;30m",
+	[TGL_RED | TGL_BOLD] =          "\033[1;31m",
+	[TGL_GREEN | TGL_BOLD] =        "\033[1;32m",
+	[TGL_YELLOW | TGL_BOLD] =       "\033[1;33m",
+	[TGL_BLUE | TGL_BOLD] =         "\033[1;34m",
+	[TGL_PURPLE | TGL_BOLD] =       "\033[1;35m",
+	[TGL_CYAN | TGL_BOLD] =         "\033[1;36m",
+	[TGL_WHITE | TGL_BOLD] =        "\033[1;37m",
 };
 
 const char *color_codes_bkg[] = {
 	[TGL_BLACK_BKG >> 4] =  "\033[40m",
 	[TGL_RED_BKG >> 4] =    "\033[41m",
-	[TGL_GREEN_BKG  >> 4] =  "\033[42m",
+	[TGL_GREEN_BKG  >> 4] = "\033[42m",
 	[TGL_YELLOW_BKG >> 4] = "\033[43m",
 	[TGL_BLUE_BKG >> 4] =   "\033[44m",
 	[TGL_PURPLE_BKG >> 4] = "\033[45m",
@@ -759,7 +768,7 @@ void itgl_mulmat(TGLMat mat1, TGLMat mat2, TGLMat res)
 			res[c][d] = 0.f;
 #pragma GCC unroll 4
 			for (k = 0; k < 4u; k++)
-          			res[c][d] += mat1[c][k] * mat2[k][d];
+				res[c][d] += mat1[c][k] * mat2[k][d];
 		}
 
 }
