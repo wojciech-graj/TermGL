@@ -73,54 +73,9 @@ const TGLGradient gradient_min = {
 	.grad = grad_min_chars,
 };
 
-const char *color_codes[] = {
-	[TGL_BLACK] =      "30m",
-	[TGL_RED] =        "31m",
-	[TGL_GREEN] =      "32m",
-	[TGL_YELLOW] =     "33m",
-	[TGL_BLUE] =       "34m",
-	[TGL_PURPLE] =     "35m",
-	[TGL_CYAN] =       "36m",
-	[TGL_WHITE] =      "37m",
-
-	[TGL_BLACK | TGL_HIGH_INTENSITY] =	"90m",
-	[TGL_RED | TGL_HIGH_INTENSITY] =        "91m",
-	[TGL_GREEN | TGL_HIGH_INTENSITY] =      "92m",
-	[TGL_YELLOW | TGL_HIGH_INTENSITY] =     "93m",
-	[TGL_BLUE | TGL_HIGH_INTENSITY] =       "94m",
-	[TGL_PURPLE | TGL_HIGH_INTENSITY] =     "95m",
-	[TGL_CYAN | TGL_HIGH_INTENSITY] =       "96m",
-	[TGL_WHITE | TGL_HIGH_INTENSITY] =      "97m",
-};
-
-const char *color_codes_bkg[] = {
-	[TGL_BLACK_BKG >> 4] =  "\033[40m",
-	[TGL_RED_BKG >> 4] =    "\033[41m",
-	[TGL_GREEN_BKG  >> 4] = "\033[42m",
-	[TGL_YELLOW_BKG >> 4] = "\033[43m",
-	[TGL_BLUE_BKG >> 4] =   "\033[44m",
-	[TGL_PURPLE_BKG >> 4] = "\033[45m",
-	[TGL_CYAN_BKG >> 4] =   "\033[46m",
-	[TGL_WHITE_BKG >> 4] =  "\033[47m",
-
-	[(TGL_BLACK_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =       "\033[100m",
-	[(TGL_RED_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =         "\033[101m",
-	[(TGL_GREEN_BKG | TGL_HIGH_INTENSITY_BKG)  >> 4] =      "\033[102m",
-	[(TGL_YELLOW_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =      "\033[103m",
-	[(TGL_BLUE_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =        "\033[104m",
-	[(TGL_PURPLE_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =      "\033[105m",
-	[(TGL_CYAN_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =        "\033[106m",
-	[(TGL_WHITE_BKG | TGL_HIGH_INTENSITY_BKG) >> 4] =       "\033[107m",
-};
-
-const char *modifier_codes[] = {
-	[0] =                   "\033[0;",
-	[TGL_BOLD >> 8] =       "\033[1;",
-	[TGL_UNDERLINE >> 8] =  "\033[4;",
-};
-
 void itgl_clip(TGL *tgl, int *x, int *y);
 void itgl_horiz_line(TGL *tgl, int x0, float z0, TGLubyte i0, int x1, float z1, TGLubyte i1, int y, const uint16_t color);
+char *itgl_generate_sgr(const uint16_t color_prev, const uint16_t color_cur, char *buf);
 
 inline void itgl_clip(TGL *tgl, int *x, int *y)
 {
@@ -179,10 +134,69 @@ TGL *tgl_init(const unsigned width, const unsigned height, const TGLGradient *gr
 	return tgl;
 }
 
+char *itgl_generate_sgr(const uint16_t color_prev, const uint16_t color_cur, char *buf)
+{
+	uint16_t enable = color_cur & ~color_prev;
+	uint16_t disable = color_prev & ~color_cur;
+	uint16_t xor = color_cur ^ color_prev;
+	bool flag_delim = false;
+
+	*buf++ = '\033';
+	*buf++ = '[';
+
+	if (disable & TGL_BOLD) {
+		*buf++ = '2';
+		*buf++ = '2';
+		flag_delim = true;
+	} else if (enable & TGL_BOLD) {
+		*buf++ = '1';
+		flag_delim = true;
+	}
+
+	if (disable & TGL_UNDERLINE) {
+		if (flag_delim)
+			*buf++ = ';';
+		else
+			flag_delim = true;
+		*buf++ = '2';
+		*buf++ = '4';
+	} else if (enable & TGL_UNDERLINE) {
+		if (flag_delim)
+			*buf++ = ';';
+		else
+			flag_delim = true;
+		*buf++ = '4';
+	}
+
+	if (xor & 0x000F) {
+		if (flag_delim)
+			*buf++ = ';';
+		else
+			flag_delim = true;
+		*buf++ = (color_cur & TGL_HIGH_INTENSITY) ? '9' : '3';
+		*buf++ = (color_cur & 0x0007) + 48;
+	}
+
+	if (xor & 0x00F0) {
+		if (flag_delim)
+			*buf++ = ';';
+		if (color_cur & TGL_HIGH_INTENSITY_BKG) {
+			*buf++ = '1';
+			*buf++ = '0';
+		} else {
+			*buf++ = '4';
+		}
+		*buf++ = ((color_cur & 0x0070) >> 4) + 48;
+	}
+	*buf++ = 'm';
+
+	return buf;
+}
+
 void tgl_flush(TGL *tgl)
 {
 	TGL_CLEAR_SCREEN;
-	uint16_t color = 0x0FFF;
+	uint16_t color = 0x0007;
 	unsigned row, col;
 	Pixel *pixel = tgl->frame_buffer;
 	bool double_chars = tgl->settings & TGL_DOUBLE_CHARS;
@@ -192,36 +206,29 @@ void tgl_flush(TGL *tgl)
 		for (row = 0; row < tgl->height; row++) {
 			for (col = 0; col < tgl->width; col++) {
 				if (color != pixel->color) {
+					output_buffer_loc = itgl_generate_sgr(color, pixel->color, output_buffer_loc);
 					color = pixel->color;
-					memcpy(output_buffer_loc, modifier_codes[(color & 0x0F00) >> 8], 7);
-					output_buffer_loc += 4;
-					memcpy(output_buffer_loc, color_codes[color & 0x000F], 7);
-					output_buffer_loc += 3;
-					unsigned bkg_len = color & TGL_HIGH_INTENSITY_BKG ? 6 : 5;
-					memcpy(output_buffer_loc, color_codes_bkg[(color & 0x00F0) >> 4], bkg_len);
-					output_buffer_loc += bkg_len;
 				}
-				*(output_buffer_loc++) = pixel->v_char;
+				*output_buffer_loc++ = pixel->v_char;
 				if (double_chars)
-					*(output_buffer_loc++) = pixel->v_char;
+					*output_buffer_loc++ = pixel->v_char;
 				pixel++;
 			}
-			*(output_buffer_loc++) = '\n';
+			*output_buffer_loc++ = '\n';
 		}
-		memcpy(output_buffer_loc, modifier_codes[0], 7);
-		output_buffer_loc += 4;
-		memcpy(output_buffer_loc, color_codes[TGL_WHITE], 7);
-		output_buffer_loc += 5;
-		memcpy(output_buffer_loc, color_codes_bkg[TGL_BLACK_BKG >> 4], 5);
+		*output_buffer_loc++ = '\033';
+		*output_buffer_loc++ = '[';
+		*output_buffer_loc++ = '0';
+		*output_buffer_loc = 'm';
 		fputs(tgl->output_buffer, stdout);
 	} else {
 		for (row = 0; row < tgl->height; row++) {
 			for (col = 0; col < tgl->width; col++) {
 				if (color != pixel->color) {
+					char buf[16];
+					*itgl_generate_sgr(color, pixel->color, buf) = '\0';
 					color = pixel->color;
-					fputs(modifier_codes[(color & 0x0F00) >> 8], stdout);
-					fputs(color_codes[color & 0x000F], stdout);
-					fputs(color_codes_bkg[(color & 0x00F0) >> 4], stdout);
+					fputs(buf, stdout);
 				}
 				putchar(pixel->v_char);
 				if (double_chars)
@@ -230,9 +237,7 @@ void tgl_flush(TGL *tgl)
 			}
 			putchar('\n');
 		}
-		fputs(modifier_codes[0], stdout);
-		fputs(color_codes[TGL_WHITE], stdout);
-		fputs(color_codes_bkg[TGL_BLACK_BKG >> 4], stdout);
+		fputs("\033[0m", stdout);
 	}
 
 	fflush(stdout);
@@ -262,7 +267,7 @@ void tgl_point(TGL *tgl, int x, int y, float z, TGLubyte i, uint16_t color)
 	SET_PIXEL(tgl, x, y, z, INTENSITY_TO_CHAR(tgl, i), color);
 }
 
-//Bresenham's line algorithm
+/* Bresenham's line algorithm */
 void tgl_line(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, const uint16_t color)
 {
 	itgl_clip(tgl, &x0, &y0);
@@ -350,8 +355,9 @@ void itgl_horiz_line(TGL *tgl, int x0, float z0, TGLubyte i0, int x1, float z1, 
 
 }
 
-//Solution based on Bresenham's line algorithm
-//adapted from: https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h
+/* Solution based on Bresenham's line algorithm
+ * adapted from: https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h
+ **/
 void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, const uint16_t color)
 {
 	itgl_clip(tgl, &x0, &y0);
@@ -437,9 +443,9 @@ void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, 
 			else
 				t0x += signx0;
 		}
-		// Move line
+		/* Move line */
 LBL_NEXT1:
-		// process second line until y value is about to change
+		/* process second line until y value is about to change */
 		while (true) {
 			e1 += dy1;
 			while (e1 >= dx1) {
@@ -486,7 +492,7 @@ LBL_NEXT2:
 			break;
 	}
 LBL_NEXT:
-	// Second half
+	/* Second half */
 	dx0 = x2 - x1;
 	if (dx0 < 0) {
 		dx0 *= -1;
@@ -591,12 +597,12 @@ void tgl_enable(TGL *tgl, TGLubyte settings)
 		tgl_clear(tgl, TGL_Z_BUFFER);
 	}
 	if (settings & TGL_OUTPUT_BUFFER) {
-		/* Chars for text or background color: 7
-		 * Maximum 15 chars per pixel: foreground + background + char
+		/* Longest SGR code: \033[22;24;XX;10Xm (length 15)
+		 * Maximum 16 chars per pixel: SGR + 2 x char
 		 * 1 Newline character per line
-		 * 13 Additional characters for resetting colors after flush
+		 * SGR clear code: \033[0m (length 4)
 		 */
-		tgl->output_buffer_size = 15 * tgl->frame_size + tgl->height + 13;
+		tgl->output_buffer_size = 17u * tgl->frame_size + tgl->height + 4u;
 		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
 		tgl_clear(tgl, TGL_OUTPUT_BUFFER);
 	}
@@ -925,14 +931,14 @@ void tgl3d_shader(TGL *tgl, TGLTriangle *in, uint16_t color, bool fill, void *da
 {
 	TGL3D *tgl3d = tgl->tgl3d;
 
-	// VERTEX SHADER
+	/* VERTEX SHADER */
 	TGLTriangle t, out;
 
 	itgl_mulmatvec(tgl3d->transform.result, in->vertices[0], t.vertices[0]);
 	itgl_mulmatvec(tgl3d->transform.result, in->vertices[1], t.vertices[1]);
 	itgl_mulmatvec(tgl3d->transform.result, in->vertices[2], t.vertices[2]);
 
-	//TODO: clipping with the near plane should be done before projection, but this solution works well enough for now
+	/* TODO: clipping with the near plane should be done before projection, but this solution works well enough for now */
 	if (t.vertices[0][2] < 1e-6f
 		|| t.vertices[1][2] < 1e-6f
 		|| t.vertices[2][2] < 1e-6f)
@@ -953,7 +959,7 @@ void tgl3d_shader(TGL *tgl, TGLTriangle *in, uint16_t color, bool fill, void *da
 			return;
 	}
 
-	TGLTriangle trig_buffer[127]; //the size of this buffer assumes a pathological case which is probably impossible
+	TGLTriangle trig_buffer[127]; /* the size of this buffer assumes a pathological case which is probably impossible */
 	memcpy(&trig_buffer[0], &out, sizeof(TGLTriangle));
 	unsigned buffer_offset = 0;
 	unsigned n_cur_stage = 1;
@@ -969,11 +975,11 @@ void tgl3d_shader(TGL *tgl, TGLTriangle *in, uint16_t color, bool fill, void *da
 	for (i = 0; i < n_cur_stage; i++) {
 		TGLTriangle *trig = &trig_buffer[i + buffer_offset];
 
-		//INTERMEDIATE SHADER
+		/* INTERMEDIATE SHADER */
 		if (intermediate_shader)
 			intermediate_shader(trig, data);
 
-		//FRAGMENT SHADER
+		/* FRAGMENT SHADER */
 		if (fill)
 			tgl_triangle_fill(tgl,
 				MAP_COORD(tgl3d->half_width, trig->vertices[0][0]),
@@ -1031,7 +1037,7 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count)
 #ifdef __unix__
 	struct termios oldt, newt;
 
-	// Disable canonical mode
+	/* Disable canonical mode */
 	tcgetattr(STDIN_FILENO, &oldt);
 	newt = oldt;
 	newt.c_lflag &= ~(ICANON);
@@ -1043,12 +1049,12 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count)
 
 	tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
 
-	// Flush input buffer to prevent read of previous unread input
+	/* Flush input buffer to prevent read of previous unread input */
 	tcflush(STDIN_FILENO, TCIFLUSH);
 #else /* defined(TGL_OS_WINDOWS) */
 	HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
 
-	// Disable canonical mode
+	/* Disable canonical mode */
 	DWORD old_mode, new_mode;
 	GetConsoleMode(hInputHandle, &old_mode);
 	new_mode = old_mode;
@@ -1058,7 +1064,7 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count)
 	DWORD event_cnt;
 	GetNumberOfConsoleInputEvents(hInputHandle, &event_cnt);
 
-	// ReadConsole is blocking so must manually process events
+	/* ReadConsole is blocking so must manually process events */
 	size_t retval = 0;
 	if (event_cnt) {
 		INPUT_RECORD input_records[32];

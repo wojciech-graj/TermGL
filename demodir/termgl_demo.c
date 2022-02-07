@@ -384,7 +384,7 @@ int main(int argc, char **argv)
 		demo_teapot(40, 40, 33);
 		break;
 	case 2u:
-		demo_color(80, 40, 500);
+		demo_star(80, 40, 500);
 		break;
 	case 3u:
 		demo_color(40, 10, 0);
