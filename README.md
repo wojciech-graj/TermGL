@@ -6,7 +6,8 @@ A terminal-based graphics library for both 2D and 3D graphics.\
 Works in all terminals supporting ANSI escape codes.\
 Support for Windows and UNIX.\
 C99 compliant, with no external dependencies.\
-Realtime input reading from terminal for user-interaction.
+Realtime input reading from terminal for user-interaction.\
+16 Background colors, 16 foreground colors, bold and underline.
 
 ## Table of Contents
 
@@ -83,10 +84,13 @@ Renders a rotating 3D Utah Teapot.
 Renders a star polygon in steps using random colors.
 	- Colors
 	- Line rendering
-3. Mandelbrot\
+3. Color Palette\
+Renders a palette of various text colors and styles.
+	- Colors & Modifiers
+4. Mandelbrot\
 Renders an infinitely zooming-in Mandelbrot set.
 	- Point rendering
-4. Realtime Keyboard\
+5. Realtime Keyboard\
 Displays keyboard input in realtime.
 	- Text rendering
 	- Realtime keyboard input

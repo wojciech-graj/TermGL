@@ -32,11 +32,34 @@ Select a Demo:\n\
     Renders a rotating 3D Utah Teapot.\n\
 2. Star Polygon\n\
     Renders a star polygon in steps using random colors.\n\
-3. Mandelbrot\n\
+3. Color Palette\n\
+    Renders a palette of various text colors and styles.\n\
+4. Mandelbrot\n\
     Renders an infinitely zooming-in Mandelbrot set.\n\
-4. Realtime Keyboard\n\
+5. Realtime Keyboard\n\
     Displays keyboard input in realtime.\
 ";
+
+const uint16_t fg_colors[] = {
+	TGL_BLACK,
+	TGL_RED,
+	TGL_GREEN,
+	TGL_YELLOW,
+	TGL_BLUE,
+	TGL_PURPLE,
+	TGL_CYAN,
+	TGL_WHITE,
+};
+const uint16_t bkg_colors[] = {
+	TGL_BLACK_BKG,
+	TGL_RED_BKG,
+	TGL_GREEN_BKG,
+	TGL_YELLOW_BKG,
+	TGL_BLUE_BKG ,
+	TGL_PURPLE_BKG,
+	TGL_CYAN_BKG,
+	TGL_WHITE_BKG,
+};
 
 void teapot_intermediate_shader(TGLTriangle *trig, void *data);
 uint32_t stl_load(FILE *file, TGLTriangle **triangles);
@@ -45,6 +68,7 @@ void sleep_ms(const unsigned long ms);
 void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
+void demo_star(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 
 void teapot_intermediate_shader(TGLTriangle *trig, void *data)
@@ -140,7 +164,7 @@ void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned 
 					i++;
 				}
 				if (i < i_max) // Set pixel with intensity dependent on i
-					tgl_point(tgl, pix_x, pix_y, 0.f, i * 255u / i_max, TGL_WHITE);
+					tgl_point(tgl, pix_x, pix_y, 0.f, i * 255u / i_max, TGL_WHITE | TGL_BOLD);
 				x += dx;
 			}
 			y += dy;
@@ -211,7 +235,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 			memcpy(temp.intensity, trigs[i].intensity, 3);
 
 			//Draw to framebuffer
-			tgl3d_shader(tgl, &temp, TGL_WHITE, true, &temp, &teapot_intermediate_shader);
+			tgl3d_shader(tgl, &temp, TGL_WHITE | TGL_BOLD, true, &temp, &teapot_intermediate_shader);
 		}
 
 		tgl_flush(tgl);
@@ -258,33 +282,13 @@ void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned fr
 	tgl_delete(tgl);
 }
 
-void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
+void demo_star(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
 {
 	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
 	tgl_enable(tgl, TGL_OUTPUT_BUFFER);
 
 	const float pi2 = 6.28319f;
 	const unsigned n = 8, d = 3;
-	const TGLubyte fg_colors[] = {
-		TGL_BLACK,
-		TGL_RED,
-		TGL_GREEN,
-		TGL_YELLOW,
-		TGL_BLUE,
-		TGL_PURPLE,
-		TGL_CYAN,
-		TGL_WHITE,
-	};
-	const TGLubyte bkg_colors[] = {
-		TGL_BLACK_BKG,
-		TGL_RED_BKG,
-		TGL_GREEN_BKG,
-		TGL_YELLOW_BKG,
-		TGL_BLUE_BKG ,
-		TGL_PURPLE_BKG,
-		TGL_CYAN_BKG,
-		TGL_WHITE_BKG,
-	};
 
 	unsigned half_res_x = res_x / 2u;
 	unsigned half_res_y = res_y / 2u;
@@ -305,9 +309,8 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 		TGLubyte i0 = rand() % 256;
 		TGLubyte i1 = rand() % 256;
 
-		TGLubyte color = fg_colors[rand() % 8]
-			| bkg_colors[rand() % 8]
-			| (rand() % 2 ? TGL_BOLD : 0);
+		uint16_t color = fg_colors[rand() % 8]
+			| bkg_colors[rand() % 8];
 
 		tgl_line(tgl, x0, y0, 0, i0, x1, y1, 0, i1, color);
 
@@ -321,6 +324,43 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 
 		sleep_ms(frametime_ms);
 	}
+
+	tgl_delete(tgl);
+}
+
+void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
+{
+	(void)frametime_ms;
+	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
+	tgl_enable(tgl, TGL_OUTPUT_BUFFER);
+
+	static const uint16_t modifiers[5][2] = {
+		{0, 0},
+		{TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG},
+		{TGL_BOLD, 0},
+		{TGL_BOLD | TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG},
+		{TGL_UNDERLINE, 0},
+	};
+
+	tgl_puts(tgl, 9, 0, "NULL", TGL_WHITE);
+	tgl_puts(tgl, 9, 2, "TGL_HIGH_INTENSITY", TGL_WHITE);
+	tgl_puts(tgl, 9, 4, "TGL_BOLD", TGL_WHITE);
+	tgl_puts(tgl, 9, 6, "TGL_BOLD + TGL_HIGH_INTENSITY", TGL_WHITE);
+	tgl_puts(tgl, 9, 8, "TGL_UNDERLINE", TGL_WHITE);
+
+	unsigned m, c;
+	for (m = 0; m < 5; m++) {
+		unsigned y_start = m * 2;
+		tgl_putchar(tgl, 0, y_start, 'K', TGL_BLACK | TGL_WHITE_BKG | modifiers[m][0]);
+		tgl_putchar(tgl, 0, y_start + 1, 'K', TGL_WHITE | TGL_BLACK_BKG | modifiers[m][1]);
+		for (c = 1; c < 8; c++) {
+			char color = "KRGYBPCW"[c];
+			tgl_putchar(tgl, c, y_start, color, fg_colors[c] | TGL_BLACK_BKG | modifiers[m][0]);
+			tgl_putchar(tgl, c, y_start + 1, color, TGL_BLACK | bkg_colors[c] | modifiers[m][1]);
+		}
+	}
+
+	tgl_flush(tgl);
 
 	tgl_delete(tgl);
 }
@@ -347,9 +387,12 @@ int main(int argc, char **argv)
 		demo_color(80, 40, 500);
 		break;
 	case 3u:
-		demo_mandelbrot(80, 40, 33);
+		demo_color(40, 10, 0);
 		break;
 	case 4u:
+		demo_mandelbrot(80, 40, 33);
+		break;
+	case 5u:
 		demo_keyboard(80, 5, 200);
 		break;
 	default:
