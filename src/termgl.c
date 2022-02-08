@@ -4,9 +4,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #ifdef TGL_OS_WINDOWS
 #include <windows.h>
+#define WINDOWS_CALL(cond_, retval_) do {\
+		if (TGL_UNLIKELY(cond_)) {\
+			errno = GetLastError();\
+			return retval_;\
+		}\
+	} while (0)
 #endif
 
 #ifdef TERMGL3D
@@ -43,7 +50,7 @@ struct TGL {
 
 #define SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_)\
 	do {\
-		*(&tgl_->frame_buffer[y_ * tgl->width + x_]) = (Pixel) {\
+		*(&tgl_->frame_buffer[y_ * tgl_->width + x_]) = (Pixel) {\
 			.v_char = v_char_,\
 			.color = color_,\
 		};\
@@ -55,11 +62,13 @@ struct TGL {
 			SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_);\
 		} else if (z_ >= tgl_->z_buffer[y_ * tgl_->width + x_]) {\
 			SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_);\
-			tgl->z_buffer[y_ * tgl->width + x_] = z_;\
+			tgl->z_buffer[y_ * tgl_->width + x_] = z_;\
 		}\
 	} while (0)
 
 #define INTENSITY_TO_CHAR(tgl_, intensity_) tgl_->gradient->grad[tgl_->gradient->length * intensity_ / 256u]
+
+#define CALL_STDOUT(stmt_, retval_) do {if (TGL_UNLIKELY((stmt_) == EOF)) return retval_;} while (0)
 
 const char grad_full_chars[] = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 const TGLGradient gradient_full = {
@@ -90,7 +99,7 @@ void tgl_clear(TGL *tgl, const TGLubyte buffers)
 		for (i = 0; i < tgl->frame_size; i++) {
 			*(&tgl->frame_buffer[i]) = (Pixel) {
 				.v_char = ' ',
-				.color = 0x0000
+				.color = 0x0000,
 			};
 		}
 	}
@@ -109,18 +118,22 @@ TGL *tgl_init(const unsigned width, const unsigned height, const TGLGradient *gr
 		win_init = true;
 
 		HANDLE hOutputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+		WINDOWS_CALL(hOutputHandle == INVALID_HANDLE_VALUE, NULL);
 		DWORD mode;
-		GetConsoleMode(hOutputHandle, &mode);
+		WINDOWS_CALL(!GetConsoleMode(hOutputHandle, &mode), NULL);
 		mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-		SetConsoleMode(hOutputHandle, mode);
+		WINDOWS_CALL(!SetConsoleMode(hOutputHandle, mode), NULL);
 
 		HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
-		GetConsoleMode(hInputHandle, &mode);
+		WINDOWS_CALL(hInputHandle == INVALID_HANDLE_VALUE, NULL);
+		WINDOWS_CALL(!GetConsoleMode(hInputHandle, &mode), NULL);
 		mode &= ~(ENABLE_MOUSE_INPUT | ENABLE_WINDOW_INPUT | ENABLE_QUICK_EDIT_MODE);
-		SetConsoleMode(hInputHandle, mode);
+		WINDOWS_CALL(!SetConsoleMode(hInputHandle, mode), NULL);
 	}
 #endif
 	TGL *tgl = TGL_MALLOC(sizeof(TGL));
+	if (!tgl)
+		return NULL;
 	*tgl = (TGL) {
 		.width = width,
 		.height = height,
@@ -130,6 +143,10 @@ TGL *tgl_init(const unsigned width, const unsigned height, const TGLGradient *gr
 		.frame_buffer = TGL_MALLOC(sizeof(Pixel) * width * height),
 		.gradient = gradient,
 	};
+	if (!tgl->frame_buffer) {
+		TGL_FREE(tgl);
+		return NULL;
+	}
 	tgl_clear(tgl, TGL_FRAME_BUFFER);
 	return tgl;
 }
@@ -193,7 +210,7 @@ char *itgl_generate_sgr(const uint16_t color_prev, const uint16_t color_cur, cha
 	return buf;
 }
 
-void tgl_flush(TGL *tgl)
+int tgl_flush(TGL *tgl)
 {
 	TGL_CLEAR_SCREEN;
 	uint16_t color = 0x0007;
@@ -220,7 +237,7 @@ void tgl_flush(TGL *tgl)
 		*output_buffer_loc++ = '[';
 		*output_buffer_loc++ = '0';
 		*output_buffer_loc = 'm';
-		fputs(tgl->output_buffer, stdout);
+		CALL_STDOUT(fputs(tgl->output_buffer, stdout), -1);
 	} else {
 		for (row = 0; row < tgl->height; row++) {
 			for (col = 0; col < tgl->width; col++) {
@@ -228,19 +245,20 @@ void tgl_flush(TGL *tgl)
 					char buf[16];
 					*itgl_generate_sgr(color, pixel->color, buf) = '\0';
 					color = pixel->color;
-					fputs(buf, stdout);
+					CALL_STDOUT(fputs(buf, stdout), -1);
 				}
-				putchar(pixel->v_char);
+				CALL_STDOUT(putchar(pixel->v_char), -1);
 				if (double_chars)
-					putchar(pixel->v_char);
+					CALL_STDOUT(putchar(pixel->v_char), -1);
 				pixel++;
 			}
-			putchar('\n');
+			CALL_STDOUT(putchar('\n'), -1);
 		}
-		fputs("\033[0m", stdout);
+		CALL_STDOUT(fputs("\033[0m", stdout), -1);
 	}
 
-	fflush(stdout);
+	CALL_STDOUT(fflush(stdout), -1);
+	return 0;
 }
 
 void tgl_putchar(TGL *tgl, int x, int y, char c, uint16_t color)
@@ -588,15 +606,18 @@ LBL_NEXT4:
 	}
 }
 
-void tgl_enable(TGL *tgl, TGLubyte settings)
+int tgl_enable(TGL *tgl, TGLubyte settings)
 {
+	TGLubyte enable = settings & ~tgl->settings;
 	tgl->settings |= settings;
-	if (settings & TGL_Z_BUFFER) {
+	if (enable & TGL_Z_BUFFER) {
 		tgl->z_buffer_enabled = true;
 		tgl->z_buffer = TGL_MALLOC(sizeof(float) * tgl->frame_size);
+		if (!tgl->z_buffer)
+			return -1;
 		tgl_clear(tgl, TGL_Z_BUFFER);
 	}
-	if (settings & TGL_OUTPUT_BUFFER) {
+	if (enable & TGL_OUTPUT_BUFFER) {
 		/* Longest SGR code: \033[22;24;XX;10Xm (length 15)
 		 * Maximum 16 chars per pixel: SGR + 2 x char
 		 * 1 Newline character per line
@@ -604,8 +625,11 @@ void tgl_enable(TGL *tgl, TGLubyte settings)
 		 */
 		tgl->output_buffer_size = 17u * tgl->frame_size + tgl->height + 4u;
 		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
+		if (!tgl->output_buffer)
+			return -1;
 		tgl_clear(tgl, TGL_OUTPUT_BUFFER);
 	}
+	return 0;
 }
 
 void tgl_disable(TGL *tgl, TGLubyte settings)
@@ -653,9 +677,9 @@ struct TGL3D {
 #define TGL_CULL_FACE_BIT 0x01
 #define TGL_WINDING_BIT 0x02
 
-#define MAP_COORD(half, val) ((val * half) + half)
+#define MAP_COORD(half_, val_) ((val_ * half_) + half_)
 
-enum /*clip planes*/ {
+enum /* clip planes */ {
 	CLIP_NEAR = 0,
 	CLIP_FAR,
 	CLIP_LEFT,
@@ -805,15 +829,18 @@ float itgl_distance_point_plane(const TGLVec3 normal, TGLVec3 point)
 	return tgl_dot3(normal, point) + 1.f;
 }
 
-void tgl3d_init(TGL *tgl)
+int tgl3d_init(TGL *tgl)
 {
 	TGL3D *tgl3d = TGL_MALLOC(sizeof(TGL3D));
+	if (!tgl3d)
+		return -1;
 
 	tgl3d->aspect_ratio = tgl->height / (float)tgl->width;
 	tgl3d->half_width = tgl->width / 2.f;
 	tgl3d->half_height = tgl->height / 2.f;
 
 	tgl->tgl3d = tgl3d;
+	return 0;
 }
 
 void tgl3d_camera(TGL *tgl, float fov, float near_val, float far_val)
@@ -907,7 +934,7 @@ unsigned itgl_clip_triangle_plane(const TGLVec3 normal, TGLTriangle *in, TGLTria
 			out[0].intensity[i + 1] = out[0].intensity[0] * (1.f - d) + in->intensity[outside[i]] * (d);
 		}
 		return 1;
-	case 2: ;
+	case 2:
 		memcpy(out[0].vertices[0], in->vertices[inside[0]], sizeof(TGLVec3));
 		memcpy(out[0].vertices[1], in->vertices[inside[1]], sizeof(TGLVec3));
 		d = itgl_line_intersect_plane(normal, out[0].vertices[0], in->vertices[outside[0]], out[0].vertices[2]);
@@ -924,6 +951,7 @@ unsigned itgl_clip_triangle_plane(const TGLVec3 normal, TGLTriangle *in, TGLTria
 
 		return 2;
 	}
+	TGL_UNREACHABLE();
 	return 0;
 }
 
@@ -1053,22 +1081,23 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count)
 	tcflush(STDIN_FILENO, TCIFLUSH);
 #else /* defined(TGL_OS_WINDOWS) */
 	HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
+	WINDOWS_CALL(hInputHandle == INVALID_HANDLE_VALUE, -1);
 
 	/* Disable canonical mode */
 	DWORD old_mode, new_mode;
-	GetConsoleMode(hInputHandle, &old_mode);
+	WINDOWS_CALL(!GetConsoleMode(hInputHandle, &old_mode), -1);
 	new_mode = old_mode;
 	new_mode &= ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
-	SetConsoleMode(hInputHandle, new_mode);
+	WINDOWS_CALL(!SetConsoleMode(hInputHandle, new_mode), -1);
 
 	DWORD event_cnt;
-	GetNumberOfConsoleInputEvents(hInputHandle, &event_cnt);
+	WINDOWS_CALL(!GetNumberOfConsoleInputEvents(hInputHandle, &event_cnt), -1);
 
 	/* ReadConsole is blocking so must manually process events */
 	size_t retval = 0;
 	if (event_cnt) {
 		INPUT_RECORD input_records[32];
-		ReadConsoleInput(hInputHandle, input_records, 32, &event_cnt);
+		WINDOWS_CALL(!ReadConsoleInput(hInputHandle, input_records, 32, &event_cnt), -1);
 
 		DWORD i;
 		for (i = 0; i < event_cnt; i++) {
@@ -1080,7 +1109,7 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count)
 		}
 	}
 
-	SetConsoleMode(hInputHandle, old_mode);
+	WINDOWS_CALL(!SetConsoleMode(hInputHandle, old_mode), -1);
 #endif
 	return retval;
 }
@@ -1093,9 +1122,13 @@ int tglutil_get_console_size(unsigned *col, unsigned *row, bool screen_buffer)
 	int retval = ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
 	*col = w.ws_col;
 	*row = w.ws_row;
+	return retval;
 #else /* defined(TGL_OS_WINDOWS) */
+	HANDLE hOutputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+	WINDOWS_CALL(hOutputHandle == INVALID_HANDLE_VALUE, -1);
+
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
-	int retval = GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi) ? 0 : -1;
+	WINDOWS_CALL(!GetConsoleScreenBufferInfo(hOutputHandle, &csbi), -1);
 	if (screen_buffer) {
 		*col = csbi.dwSize.X;
 		*row = csbi.dwSize.Y;
@@ -1103,8 +1136,8 @@ int tglutil_get_console_size(unsigned *col, unsigned *row, bool screen_buffer)
 		*col = csbi.srWindow.Right - csbi.srWindow.Left + 1;
 		*row = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 	}
+	return 0;
 #endif
-	return retval;
 }
 
 int tglutil_set_console_size(unsigned col, unsigned row)
@@ -1114,16 +1147,18 @@ int tglutil_set_console_size(unsigned col, unsigned row)
 		.ws_row = row,
 		.ws_col = col,
 	};
-	int retval = ioctl(STDOUT_FILENO, TIOCSWINSZ, &w);
+	return ioctl(STDOUT_FILENO, TIOCSWINSZ, &w);
 #else /* defined(TGL_OS_WINDOWS) */
+	HANDLE hOutputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+	WINDOWS_CALL(hOutputHandle == INVALID_HANDLE_VALUE, -1);
+
 	COORD size = (COORD) {
 		.Y = row,
 		.X = col,
 	};
-	int retval = SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), size) ? 0 : -1;
+	WINDOWS_CALL(!SetConsoleScreenBufferSize(hOutputHandle, size), -1);
+	return 0;
 #endif
-	return retval;
 }
-
 
 #endif /* TERMGLUTIL */

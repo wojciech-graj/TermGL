@@ -23,6 +23,9 @@ extern "C"{
 #define TGL_TYPEOF __typeof__
 #define TGL_MALLOC malloc
 #define TGL_FREE free
+#define TGL_LIKELY(x_) __builtin_expect((x_),1)
+#define TGL_UNLIKELY(x_) __builtin_expect((x_),0)
+#define TGL_UNREACHABLE() __builtin_unreachable()
 
 enum /* colors */ {
 /* text colors */
@@ -76,6 +79,10 @@ extern const TGLGradient gradient_min;
 /**
  * Initializes a TGL struct which must be passed to all functions as context
  * @param gradient: pointer to a gradient struct which holds characters which will be used when rendering. TGLGradients provided by default are gradient_min and gradient_full
+ * @return: pointer to a TGL struct, NULL on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX and Windows: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
 TGL *tgl_init(const unsigned width, const unsigned height, const TGLGradient *gradient);
 
@@ -86,8 +93,9 @@ void tgl_delete(TGL *tgl);
 
 /**
  * Prints frame buffer to terminal
+ * @return 0 on success, -1 on failure
  */
-void tgl_flush(TGL *tgl);
+int tgl_flush(TGL *tgl);
 
 /**
  * Clears frame buffers
@@ -104,8 +112,12 @@ void tgl_clear(TGL *tgl, TGLubyte buffers);
  *   TGL_DOUBLE_CHARS - square pixels by printing 2 characters per pixel
  *   TGL_CULL_FACE - (3D ONLY) cull specified triangle faces
  *   TGL_OUTPUT_BUFFER - output buffer allowing for just one print to flush. Mush faster on most terminals, but requires a few hundred kilobytes of memory
+ * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX and Windows: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
-void tgl_enable(TGL *tgl, TGLubyte settings);
+int tgl_enable(TGL *tgl, TGLubyte settings);
 void tgl_disable(TGL *tgl, TGLubyte settings);
 
 /**
@@ -196,8 +208,10 @@ void tgl_norm3(float vec[3]);
 /**
  * Initializes 3D component of TermGL
  * @param tgl: a TGL context previously created using tgl_init()
+ * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
  */
-void tgl3d_init(TGL *tgl);
+int tgl3d_init(TGL *tgl);
 
 /**
  * Sets the camera's perspective projection matrix
@@ -261,6 +275,10 @@ void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3
 
 /**
  * Reads up to count bytes from raw terminal input into buf
+ * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX: https://man7.org/linux/man-pages/man2/read.2.html#ERRORS
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
 TGL_SSIZE_T tglutil_read(char *buf, size_t count);
 
@@ -268,6 +286,9 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count);
  * Stores number of console columns and rows in *col and *row respectively
  * @param screen_buffer: true for size of screen buffer, false for size of window. On UNIX, value is ignored and assumed true.
  * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX: https://man7.org/linux/man-pages/man2/ioctl.2.html#ERRORS
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
 int tglutil_get_console_size(unsigned *col, unsigned *row, bool screen_buffer);
 
@@ -275,6 +296,9 @@ int tglutil_get_console_size(unsigned *col, unsigned *row, bool screen_buffer);
  * Sets console size
  * Only changes printable area and will not change window size if new size is larger than window
  * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX: https://man7.org/linux/man-pages/man2/ioctl.2.html#ERRORS
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
 int tglutil_set_console_size(unsigned col, unsigned row);
 
