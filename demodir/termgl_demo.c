@@ -128,7 +128,8 @@ void sleep_ms(const unsigned long ms)
 void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
 {
 	TGL *tgl = tgl_init(res_x, res_y, &gradient_full);
-	tgl_enable(tgl, TGL_OUTPUT_BUFFER);
+	assert(tgl);
+	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
 
 	const unsigned frame_max = 90;
 	const unsigned i_max = 255;
@@ -170,7 +171,7 @@ void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned 
 			y += dy;
 		}
 
-		tgl_flush(tgl);
+		assert(!tgl_flush(tgl));
 		tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_OUTPUT_BUFFER);
 
 		if (frame++ < frame_max) {
@@ -195,9 +196,10 @@ void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned 
 void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
 {
 	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
-	tgl3d_init(tgl);
+	assert(tgl);
+	assert(!tgl3d_init(tgl));
 	tgl3d_cull_face(tgl, TGL_BACK | TGL_CCW);
-	tgl_enable(tgl, TGL_DOUBLE_CHARS | TGL_CULL_FACE | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER);
+	assert(!tgl_enable(tgl, TGL_DOUBLE_CHARS | TGL_CULL_FACE | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER));
 	tgl3d_camera(tgl, 1.57f, 0.1f, 5.f);
 
 	// Load triangles
@@ -238,7 +240,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 			tgl3d_shader(tgl, &temp, TGL_WHITE | TGL_BOLD, true, &temp, &teapot_intermediate_shader);
 		}
 
-		tgl_flush(tgl);
+		assert(!tgl_flush(tgl));
 		tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER);
 
 		n += dn;
@@ -253,7 +255,8 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
 {
 	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
-	tgl_enable(tgl, TGL_OUTPUT_BUFFER);
+	assert(tgl);
+	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
 
 	const size_t bufsize = 16;
 
@@ -265,14 +268,14 @@ void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned fr
 			tgl_puts(tgl, 0, 0, "Pressed keys:", TGL_WHITE);
 			tgl_puts(tgl, 14, 0, input_keys, TGL_WHITE);
 
-			tgl_flush(tgl);
+			assert(!tgl_flush(tgl));
 			tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_OUTPUT_BUFFER);
 		} else if (input_keys[0]) {
 			memset(input_keys, 0, bufsize);
 
 			tgl_puts(tgl, 0, 0, "Pressed keys: NONE", TGL_WHITE);
 
-			tgl_flush(tgl);
+			assert(!tgl_flush(tgl));
 			tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_OUTPUT_BUFFER);
 		}
 
@@ -285,7 +288,8 @@ void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned fr
 void demo_star(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
 {
 	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
-	tgl_enable(tgl, TGL_OUTPUT_BUFFER);
+	assert(tgl);
+	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
 
 	const float pi2 = 6.28319f;
 	const unsigned n = 8, d = 3;
@@ -314,7 +318,7 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 
 		tgl_line(tgl, x0, y0, 0, i0, x1, y1, 0, i1, color);
 
-		tgl_flush(tgl);
+		assert(!tgl_flush(tgl));
 		// Buffer clear not yet required
 
 		vert = next_vert;
@@ -332,14 +336,15 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 {
 	(void)frametime_ms;
 	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
-	tgl_enable(tgl, TGL_OUTPUT_BUFFER);
+	assert(tgl);
+	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
 
 	static const uint16_t modifiers[5][2] = {
 		{0, 0},
 		{TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG},
 		{TGL_BOLD, 0},
 		{TGL_BOLD | TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG},
-		{TGL_UNDERLINE, 0},
+		{TGL_UNDERLINE, TGL_UNDERLINE},
 	};
 
 	tgl_puts(tgl, 9, 0, "NULL", TGL_WHITE);
@@ -360,9 +365,11 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 		}
 	}
 
-	tgl_flush(tgl);
+	assert(!tgl_flush(tgl));
 
 	tgl_delete(tgl);
+
+	getchar();
 }
 
 int main(int argc, char **argv)
