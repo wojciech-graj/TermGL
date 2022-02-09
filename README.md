@@ -6,7 +6,8 @@ A terminal-based graphics library for both 2D and 3D graphics.\
 Works in all terminals supporting ANSI escape codes.\
 Support for Windows and UNIX.\
 C99 compliant, with no external dependencies.\
-Realtime input reading from terminal for user-interaction.
+Realtime input reading from terminal for user-interaction.\
+16 Background colors, 16 foreground colors, bold and underline.
 
 ## Table of Contents
 
@@ -61,9 +62,9 @@ To compile a demo program, run the makefile ```make demo```.
 
 ## Documentation
 
-Certain settings can be changed at the top of [lib/termgl.h](lib/termgl.h) prior to compilation, e.g. memory allocation functions, clear screen command, compiler-specific commands.\
+Certain settings can be changed at the top of [src/termgl.c](src/termgl.c) prior to compilation, e.g. memory allocation functions, clear screen command, compiler-specific commands.\
 The header file [lib/termgl.h](lib/termgl.h) contains brief documentation for all functions and structs.\
-Compiler-specific (GCC) macros are used for loop unrolling in the ```itgl_mulmat``` and ```itgl_clip_triangle_plane``` functions.\
+Compiler-specific functionality is used, therefore it is recommened to always compile using GCC. If other compilers are used for other sections of code, see Build: Methods 2 & 3.\
 The TermGLUtil extension contains functions for reading keyboard input, but requires either Windows of UNIX headers.
 
 ### Demo
@@ -83,10 +84,13 @@ Renders a rotating 3D Utah Teapot.
 Renders a star polygon in steps using random colors.
 	- Colors
 	- Line rendering
-3. Mandelbrot\
+3. Color Palette\
+Renders a palette of various text colors and styles.
+	- Colors & Modifiers
+4. Mandelbrot\
 Renders an infinitely zooming-in Mandelbrot set.
 	- Point rendering
-4. Realtime Keyboard\
+5. Realtime Keyboard\
 Displays keyboard input in realtime.
 	- Text rendering
 	- Realtime keyboard input
