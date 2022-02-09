@@ -6,7 +6,7 @@ extern "C"{
 #endif
 
 #define TGL_VERSION_MAJOR 1
-#define TGL_VERSION_MINOR 1
+#define TGL_VERSION_MINOR 2
 
 #include <stdbool.h>
 #include <stdint.h>
