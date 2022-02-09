@@ -371,6 +371,8 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 
 	tgl_delete(tgl);
 
+	/* Wait for user input */
+	getchar();
 	getchar();
 }
 
