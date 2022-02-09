@@ -16,17 +16,6 @@ extern "C"{
 #include <windef.h>
 #endif
 
-/**
- * Setting MACROs
- */
-#define TGL_CLEAR_SCREEN do {fputs("\033[1;1H\033[2J", stdout);} while (0)
-#define TGL_TYPEOF __typeof__
-#define TGL_MALLOC malloc
-#define TGL_FREE free
-#define TGL_LIKELY(x_) __builtin_expect((x_),1)
-#define TGL_UNLIKELY(x_) __builtin_expect((x_),0)
-#define TGL_UNREACHABLE() __builtin_unreachable()
-
 enum /* colors */ {
 /* text colors */
 	TGL_BLACK = 0x00,
@@ -65,7 +54,7 @@ enum {
 #endif
 };
 
-typedef unsigned char TGLubyte;
+typedef uint8_t TGLubyte;
 
 typedef struct TGL TGL;
 typedef struct TGLGradient {
@@ -94,6 +83,7 @@ void tgl_delete(TGL *tgl);
 /**
  * Prints frame buffer to terminal
  * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by: https://man7.org/linux/man-pages/man3/fputc.3p.html#ERRORS
  */
 int tgl_flush(TGL *tgl);
 
@@ -113,9 +103,7 @@ void tgl_clear(TGL *tgl, TGLubyte buffers);
  *   TGL_CULL_FACE - (3D ONLY) cull specified triangle faces
  *   TGL_OUTPUT_BUFFER - output buffer allowing for just one print to flush. Mush faster on most terminals, but requires a few hundred kilobytes of memory
  * @return 0 on success, -1 on failure
- * On failure, errno is set to value specified by:
- *   UNIX and Windows: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
- *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
+ * On failure, errno is set to value specified by: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
  */
 int tgl_enable(TGL *tgl, TGLubyte settings);
 void tgl_disable(TGL *tgl, TGLubyte settings);
@@ -275,9 +263,13 @@ void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3
 
 /**
  * Reads up to count bytes from raw terminal input into buf
- * @return 0 on success, -1 on failure
+ * @return number of bytes read on success, negative value on failure
  * On failure, errno is set to value specified by:
- *   UNIX: https://man7.org/linux/man-pages/man2/read.2.html#ERRORS
+ *   UNIX:
+ *     -1: https://man7.org/linux/man-pages/man2/read.2.html#ERRORS
+ *     -2: https://www.man7.org/linux/man-pages/man3/tcgetattr.3p.html#ERRORS
+ *     -3: https://www.man7.org/linux/man-pages/man3/tcsetattr.3p.html#ERRORS
+ *     -4: https://www.man7.org/linux/man-pages/man3/tcflush.3p.html#ERRORS
  *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
 TGL_SSIZE_T tglutil_read(char *buf, size_t count);

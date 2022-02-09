@@ -6,6 +6,17 @@
 #include <string.h>
 #include <errno.h>
 
+/**
+ * Setting MACROs
+ */
+#define TGL_CLEAR_SCREEN do {fputs("\033[1;1H\033[2J", stdout);} while (0)
+#define TGL_TYPEOF __typeof__
+#define TGL_MALLOC malloc
+#define TGL_FREE free
+#define TGL_LIKELY(x_) __builtin_expect((x_),1)
+#define TGL_UNLIKELY(x_) __builtin_expect((x_),0)
+#define TGL_UNREACHABLE() __builtin_unreachable()
+
 #ifdef TGL_OS_WINDOWS
 #include <windows.h>
 #define WINDOWS_CALL(cond_, retval_) do {\
@@ -68,7 +79,8 @@ struct TGL {
 
 #define INTENSITY_TO_CHAR(tgl_, intensity_) tgl_->gradient->grad[tgl_->gradient->length * intensity_ / 256u]
 
-#define CALL_STDOUT(stmt_, retval_) do {if (TGL_UNLIKELY((stmt_) == EOF)) return retval_;} while (0)
+#define CALL(stmt_, retval_) do {if (TGL_UNLIKELY(stmt_)) return retval_;} while (0)
+#define CALL_STDOUT(stmt_, retval_) CALL((stmt_) == EOF, retval_)
 
 const char grad_full_chars[] = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 const TGLGradient gradient_full = {
@@ -904,7 +916,7 @@ unsigned itgl_clip_triangle_plane(const TGLVec3 normal, TGLTriangle *in, TGLTria
 	TGLVec3 di = {
 		itgl_distance_point_plane(normal, in->vertices[0]),
 		itgl_distance_point_plane(normal, in->vertices[1]),
-		itgl_distance_point_plane(normal, in->vertices[2])
+		itgl_distance_point_plane(normal, in->vertices[2]),
 	};
 
 	unsigned n_inside = 0, n_outside = 0;
@@ -1066,19 +1078,19 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count)
 	struct termios oldt, newt;
 
 	/* Disable canonical mode */
-	tcgetattr(STDIN_FILENO, &oldt);
+	CALL(tcgetattr(STDIN_FILENO, &oldt), -2);
 	newt = oldt;
 	newt.c_lflag &= ~(ICANON);
 	newt.c_cc[VMIN] = 0;
 	newt.c_cc[VTIME] = 0;
-	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+	CALL(tcsetattr(STDIN_FILENO, TCSANOW, &newt), -3);
 
 	TGL_SSIZE_T retval = read(2, buf, count);
 
-	tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+	CALL(tcsetattr(STDIN_FILENO, TCSANOW, &oldt), -3);
 
 	/* Flush input buffer to prevent read of previous unread input */
-	tcflush(STDIN_FILENO, TCIFLUSH);
+	CALL(tcflush(STDIN_FILENO, TCIFLUSH), -4);
 #else /* defined(TGL_OS_WINDOWS) */
 	HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
 	WINDOWS_CALL(hInputHandle == INVALID_HANDLE_VALUE, -1);
