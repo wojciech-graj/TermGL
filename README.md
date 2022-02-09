@@ -62,7 +62,7 @@ To compile a demo program, run the makefile ```make demo```.
 
 ## Documentation
 
-Certain settings can be changed at the top of [lib/termgl.h](lib/termgl.h) prior to compilation, e.g. memory allocation functions, clear screen command, compiler-specific commands.\
+Certain settings can be changed at the top of [src/termgl.c](src/termgl.c) prior to compilation, e.g. memory allocation functions, clear screen command, compiler-specific commands.\
 The header file [lib/termgl.h](lib/termgl.h) contains brief documentation for all functions and structs.\
 Compiler-specific functionality is used, therefore it is recommened to always compile using GCC. If other compilers are used for other sections of code, see Build: Methods 2 & 3.\
 The TermGLUtil extension contains functions for reading keyboard input, but requires either Windows of UNIX headers.

@@ -264,7 +264,9 @@ void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned fr
 	input_keys[0] = '\1';
 
 	while (1) {
-		if (tglutil_read(input_keys, bufsize - 1u)) {
+		TGL_SSIZE_T chars_read = tglutil_read(input_keys, bufsize - 1u);
+		assert(chars_read >= 0);
+		if (chars_read) {
 			tgl_puts(tgl, 0, 0, "Pressed keys:", TGL_WHITE);
 			tgl_puts(tgl, 14, 0, input_keys, TGL_WHITE);
 
