@@ -6,24 +6,18 @@ extern "C"{
 #endif
 
 #define TGL_VERSION_MAJOR 1
-#define TGL_VERSION_MINOR 1
+#define TGL_VERSION_MINOR 2
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #if defined(_WIN32) || defined(WIN32)
 #define TGL_OS_WINDOWS
 #include <windef.h>
 #endif
 
-/**
- * Setting MACROs
- */
-#define TGL_CLEAR_SCREEN do {puts("\033[1;1H\033[2J");} while (0)
-#define TGL_TYPEOF __typeof__
-#define TGL_MALLOC malloc
-#define TGL_FREE free
-
-enum /*colors*/ {
+enum /* colors */ {
+/* text colors */
 	TGL_BLACK = 0x00,
 	TGL_RED = 0x01,
 	TGL_GREEN = 0x02,
@@ -32,6 +26,7 @@ enum /*colors*/ {
 	TGL_PURPLE = 0x05,
 	TGL_CYAN = 0x06,
 	TGL_WHITE = 0x07,
+/* highlight colors */
 	TGL_BLACK_BKG = 0x00,
 	TGL_RED_BKG = 0x10,
 	TGL_GREEN_BKG = 0x20,
@@ -40,14 +35,26 @@ enum /*colors*/ {
 	TGL_PURPLE_BKG = 0x50,
 	TGL_CYAN_BKG = 0x60,
 	TGL_WHITE_BKG = 0x70,
+/* modifiers */
+	TGL_HIGH_INTENSITY = 0x08,
+	TGL_HIGH_INTENSITY_BKG = 0x80,
+	TGL_BOLD = 0x100, /* Often equivalent to TGL_HIGH_INTENSITY */
+	TGL_UNDERLINE = 0x200,
 };
 
-#define TGL_FRAME_BUFFER 0x01
-#define TGL_Z_BUFFER 0x40
-#define TGL_OUTPUT_BUFFER 0x20
-#define TGL_DOUBLE_CHARS 0x80
+enum {
+/* buffers */
+	TGL_FRAME_BUFFER = 0x01,
+	TGL_OUTPUT_BUFFER  = 0x02,
+	TGL_Z_BUFFER = 0x04,
+/* settings */
+	TGL_DOUBLE_CHARS = 0x10,
+#ifdef TERMGL3D
+	TGL_CULL_FACE = 0x20,
+#endif
+};
 
-typedef unsigned char TGLubyte;
+typedef uint8_t TGLubyte;
 
 typedef struct TGL TGL;
 typedef struct TGLGradient {
@@ -61,6 +68,10 @@ extern const TGLGradient gradient_min;
 /**
  * Initializes a TGL struct which must be passed to all functions as context
  * @param gradient: pointer to a gradient struct which holds characters which will be used when rendering. TGLGradients provided by default are gradient_min and gradient_full
+ * @return: pointer to a TGL struct, NULL on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX and Windows: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
 TGL *tgl_init(const unsigned width, const unsigned height, const TGLGradient *gradient);
 
@@ -71,8 +82,10 @@ void tgl_delete(TGL *tgl);
 
 /**
  * Prints frame buffer to terminal
+ * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by: https://man7.org/linux/man-pages/man3/fputc.3p.html#ERRORS
  */
-void tgl_flush(TGL *tgl);
+int tgl_flush(TGL *tgl);
 
 /**
  * Clears frame buffers
@@ -89,31 +102,35 @@ void tgl_clear(TGL *tgl, TGLubyte buffers);
  *   TGL_DOUBLE_CHARS - square pixels by printing 2 characters per pixel
  *   TGL_CULL_FACE - (3D ONLY) cull specified triangle faces
  *   TGL_OUTPUT_BUFFER - output buffer allowing for just one print to flush. Mush faster on most terminals, but requires a few hundred kilobytes of memory
+ * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
  */
-void tgl_enable(TGL *tgl, TGLubyte settings);
+int tgl_enable(TGL *tgl, TGLubyte settings);
 void tgl_disable(TGL *tgl, TGLubyte settings);
 
 /**
  * Various drawing functions
  * @param i: intensity of pixel which will be mapped to character on gradient
- * @param color: bitwise combination of colors defined in above enum. Can use one foreground (TGL_COLOR) and one background (TGL_COLOR_BKG)
+ * @param color: bitwise combination of colors defined in above enum. Can use one foreground (TGL_COLOR) and one background (TGL_COLOR_BKG), and any modifiers
  */
-void tgl_putchar(TGL *tgl, int x, int y, char c, TGLubyte color);
-void tgl_puts(TGL *tgl, int x, int y, char *str, TGLubyte color);
-void tgl_point(TGL *tgl, int x, int y, float z, TGLubyte i, TGLubyte color);
-void tgl_line(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, TGLubyte color);
-void tgl_triangle(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, TGLubyte color);
-void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, TGLubyte color);
+void tgl_putchar(TGL *tgl, int x, int y, char c, uint16_t color);
+void tgl_puts(TGL *tgl, int x, int y, char *str, uint16_t color);
+void tgl_point(TGL *tgl, int x, int y, float z, TGLubyte i, uint16_t color);
+void tgl_line(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, uint16_t color);
+void tgl_triangle(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, uint16_t color);
+void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, uint16_t color);
 
 #ifdef TERMGL3D
 
-#define TGL_CULL_FACE 0x01
+enum /* faces */ {
+	TGL_BACK = 0x00,
+	TGL_FRONT = 0x01,
+};
 
-#define TGL_BACK  0x00
-#define TGL_FRONT 0x01
-
-#define TGL_CW  0x00
-#define TGL_CCW 0x02
+enum /* winding */ {
+	TGL_CW = 0x00,
+	TGL_CCW = 0x02,
+};
 
 #define TGL_ROTATION_MATRIX(x_, y_, z_) {\
 		{cosf(z_) * cosf(y_), -sinf(z_) * cosf(x_) + cosf(z_) * sinf(y_) * sinf(x_), sinf(z_) * sinf(x_) + cosf(z_) * sinf(y_) * cosf(x_), 0.f},\
@@ -179,8 +196,10 @@ void tgl_norm3(float vec[3]);
 /**
  * Initializes 3D component of TermGL
  * @param tgl: a TGL context previously created using tgl_init()
+ * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
  */
-void tgl3d_init(TGL *tgl);
+int tgl3d_init(TGL *tgl);
 
 /**
  * Sets the camera's perspective projection matrix
@@ -208,7 +227,7 @@ void tgl3d_cull_face(TGL *tgl, TGLubyte settings);
  * @param intermediate_shader: (allow NULL) pointer to a shader function which is executed after vertex shader (projection and clipping) and before fragment shader (drawing onto framebuffer). Parameters are a projected triangle from vertex shader, and optional data. See termgl_test.c for example
  * @param data: (allow NULL) data which is passed to intermediate_shader
  */
-void tgl3d_shader(TGL *tgl, TGLTriangle *in, TGLubyte color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle*, void*));
+void tgl3d_shader(TGL *tgl, TGLTriangle *in, uint16_t color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle*, void*));
 
 /**
  * Various functions to edit TGLTransform matrices
@@ -244,6 +263,14 @@ void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3
 
 /**
  * Reads up to count bytes from raw terminal input into buf
+ * @return number of bytes read on success, negative value on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX:
+ *     -1: https://man7.org/linux/man-pages/man2/read.2.html#ERRORS
+ *     -2: https://www.man7.org/linux/man-pages/man3/tcgetattr.3p.html#ERRORS
+ *     -3: https://www.man7.org/linux/man-pages/man3/tcsetattr.3p.html#ERRORS
+ *     -4: https://www.man7.org/linux/man-pages/man3/tcflush.3p.html#ERRORS
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
 TGL_SSIZE_T tglutil_read(char *buf, size_t count);
 
@@ -251,6 +278,9 @@ TGL_SSIZE_T tglutil_read(char *buf, size_t count);
  * Stores number of console columns and rows in *col and *row respectively
  * @param screen_buffer: true for size of screen buffer, false for size of window. On UNIX, value is ignored and assumed true.
  * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX: https://man7.org/linux/man-pages/man2/ioctl.2.html#ERRORS
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
 int tglutil_get_console_size(unsigned *col, unsigned *row, bool screen_buffer);
 
@@ -258,6 +288,9 @@ int tglutil_get_console_size(unsigned *col, unsigned *row, bool screen_buffer);
  * Sets console size
  * Only changes printable area and will not change window size if new size is larger than window
  * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX: https://man7.org/linux/man-pages/man2/ioctl.2.html#ERRORS
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
 int tglutil_set_console_size(unsigned col, unsigned row);
 
