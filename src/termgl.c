@@ -356,7 +356,7 @@ void tgl_line(TGL * const tgl, int x0, int y0, float z0, uint8_t i0, int x1, int
 		int d = (dx + dx) - dy;
 		int x = x0;
 		int y;
-		for (y = y0; y < y1; y++) {
+		for (y = y0; y <= y1; y++) {
 			SET_PIXEL(tgl, x, y,
 				((y - y0) * z1 + (y1 - y) * z0) / dx,
 				INTENSITY_TO_CHAR(tgl, ((y - y0) * i1 + (y1 - y) * i0) / dy), color);
