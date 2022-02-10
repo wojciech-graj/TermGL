@@ -312,8 +312,8 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 		unsigned y0 = half_res_y + half_res_y * sinf(angle0) * 0.9f;
 		unsigned y1 = half_res_y + half_res_y * sinf(angle1) * 0.9f;
 
-		TGLubyte i0 = rand() % 256;
-		TGLubyte i1 = rand() % 256;
+		uint8_t i0 = rand() % 256;
+		uint8_t i1 = rand() % 256;
 
 		uint16_t color = fg_colors[rand() % 8]
 			| bkg_colors[rand() % 8];
@@ -344,7 +344,7 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 	static const uint16_t modifiers[5][2] = {
 		{0, 0},
 		{TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG},
-		{TGL_BOLD, 0},
+		{TGL_BOLD, TGL_BOLD},
 		{TGL_BOLD | TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG},
 		{TGL_UNDERLINE, TGL_UNDERLINE},
 	};
