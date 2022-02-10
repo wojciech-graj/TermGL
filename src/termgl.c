@@ -47,7 +47,7 @@ struct TGL {
 	char *output_buffer;
 	unsigned output_buffer_size;
 	bool z_buffer_enabled;
-	TGLubyte settings;
+	uint8_t settings;
 	const TGLGradient *gradient;
 #ifdef TERMGL3D
 	TGL3D *tgl3d;
@@ -96,7 +96,7 @@ const TGLGradient gradient_min = {
 
 void itgl_clip(const TGL *tgl, int *x, int *y);
 char *itgl_generate_sgr(uint16_t color_prev, uint16_t color_cur, char *buf);
-void itgl_horiz_line(TGL *tgl, int x0, float z0, TGLubyte i0, int x1, float z1, TGLubyte i1, int y, uint16_t color);
+void itgl_horiz_line(TGL *tgl, int x0, float z0, uint8_t i0, int x1, float z1, uint8_t i1, int y, uint16_t color);
 
 inline void itgl_clip(const TGL *tgl, int * const x, int * const y)
 {
@@ -104,7 +104,7 @@ inline void itgl_clip(const TGL *tgl, int * const x, int * const y)
 	*y = MAX(MIN(tgl->max_y, *y), 0);
 }
 
-void tgl_clear(TGL * const tgl, const TGLubyte buffers)
+void tgl_clear(TGL * const tgl, const uint8_t buffers)
 {
 	unsigned i;
 	if (buffers & TGL_FRAME_BUFFER) {
@@ -296,14 +296,14 @@ void tgl_puts(TGL * const tgl, const int x, int y, char *str, const uint16_t col
 	}
 }
 
-void tgl_point(TGL * const tgl, int x, int y, const float z, const TGLubyte i, const uint16_t color)
+void tgl_point(TGL * const tgl, int x, int y, const float z, const uint8_t i, const uint16_t color)
 {
 	itgl_clip(tgl, &x, &y);
 	SET_PIXEL(tgl, x, y, z, INTENSITY_TO_CHAR(tgl, i), color);
 }
 
 /* Bresenham's line algorithm */
-void tgl_line(TGL * const tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, uint16_t color)
+void tgl_line(TGL * const tgl, int x0, int y0, float z0, uint8_t i0, int x1, int y1, float z1, uint8_t i1, uint16_t color)
 {
 	itgl_clip(tgl, &x0, &y0);
 	itgl_clip(tgl, &x1, &y1);
@@ -370,14 +370,14 @@ void tgl_line(TGL * const tgl, int x0, int y0, float z0, TGLubyte i0, int x1, in
 	}
 }
 
-void tgl_triangle(TGL * const tgl, const int x0, const int y0, const float z0, const TGLubyte i0, const int x1, const int y1, const float z1, const TGLubyte i1, const int x2, const int y2, const float z2, const int i2, const uint16_t color)
+void tgl_triangle(TGL * const tgl, const int x0, const int y0, const float z0, const uint8_t i0, const int x1, const int y1, const float z1, const uint8_t i1, const int x2, const int y2, const float z2, const int i2, const uint16_t color)
 {
 	tgl_line(tgl, x0, y0, z0, i0, x1, y1, z1, i1, color);
 	tgl_line(tgl, x1, y1, z1, i1, x2, y2, z2, i2, color);
 	tgl_line(tgl, x2, y2, z2, i2, x0, y0, z0, i0, color);
 }
 
-void itgl_horiz_line(TGL * const tgl, const int x0, const float z0, const TGLubyte i0, const int x1, const float z1, const TGLubyte i1, const int y, const uint16_t color)
+void itgl_horiz_line(TGL * const tgl, const int x0, const float z0, const uint8_t i0, const int x1, const float z1, const uint8_t i1, const int y, const uint16_t color)
 {
 	if (x0 == x1) {
 		SET_PIXEL(tgl, x0, y, z0, INTENSITY_TO_CHAR(tgl, i0), color);
@@ -395,7 +395,7 @@ void itgl_horiz_line(TGL * const tgl, const int x0, const float z0, const TGLuby
 /* Solution based on Bresenham's line algorithm
  * adapted from: https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h
  **/
-void tgl_triangle_fill(TGL * const tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, const uint16_t color)
+void tgl_triangle_fill(TGL * const tgl, int x0, int y0, float z0, uint8_t i0, int x1, int y1, float z1, uint8_t i1, int x2, int y2, float z2, int i2, const uint16_t color)
 {
 	itgl_clip(tgl, &x0, &y0);
 	itgl_clip(tgl, &x1, &y1);
@@ -625,9 +625,9 @@ LBL_NEXT4:
 	}
 }
 
-int tgl_enable(TGL * const tgl, const TGLubyte settings)
+int tgl_enable(TGL * const tgl, const uint8_t settings)
 {
-	const TGLubyte enable = settings & ~tgl->settings;
+	const uint8_t enable = settings & ~tgl->settings;
 	tgl->settings |= settings;
 	if (enable & TGL_Z_BUFFER) {
 		tgl->z_buffer_enabled = true;
@@ -651,7 +651,7 @@ int tgl_enable(TGL * const tgl, const TGLubyte settings)
 	return 0;
 }
 
-void tgl_disable(TGL * const tgl, const TGLubyte settings)
+void tgl_disable(TGL * const tgl, const uint8_t settings)
 {
 	tgl->settings &= ~settings;
 	if (settings & TGL_Z_BUFFER) {
@@ -682,7 +682,7 @@ void tgl_delete(TGL * const tgl)
 #include <math.h>
 
 struct TGL3D {
-	TGLubyte settings;
+	uint8_t settings;
 	float aspect_ratio;
 	float half_width;
 	float half_height;
@@ -843,6 +843,7 @@ void itgl_mulmat(TGLMat mat1, TGLMat mat2, TGLMat res)
 
 }
 
+__attribute__ ((const))
 float itgl_distance_point_plane(const TGLVec3 normal, const TGLVec3 point)
 {
 	return tgl_dot3(normal, point) + 1.f;
@@ -995,7 +996,7 @@ void tgl3d_shader(TGL * const tgl, const TGLTriangle *in, const uint16_t color, 
 	itgl_mulmatvec(tgl3d->projection, t.vertices[1], out.vertices[1]);
 	itgl_mulmatvec(tgl3d->projection, t.vertices[2], out.vertices[2]);
 
-	memcpy(out.intensity, in->intensity, sizeof(TGLubyte) * 3);
+	memcpy(out.intensity, in->intensity, sizeof(uint8_t) * 3);
 
 	if (tgl->settings & TGL_CULL_FACE) {
 		TGLVec3 ab, ac, cp;
@@ -1060,7 +1061,7 @@ void tgl3d_shader(TGL * const tgl, const TGLTriangle *in, const uint16_t color, 
 	}
 }
 
-void tgl3d_cull_face(TGL * const tgl, const TGLubyte settings)
+void tgl3d_cull_face(TGL * const tgl, const uint8_t settings)
 {
 	tgl->tgl3d->settings = (tgl->tgl3d->settings & ~TGL_CULL_BIT) | (XOR(settings & TGL_CULL_FACE_BIT, settings & TGL_WINDING_BIT) ? TGL_CULL_BIT: 0);
 }
