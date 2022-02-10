@@ -54,8 +54,6 @@ enum {
 #endif
 };
 
-typedef uint8_t TGLubyte;
-
 typedef struct TGL TGL;
 typedef struct TGLGradient {
 	unsigned length;
@@ -93,7 +91,7 @@ int tgl_flush(TGL *tgl);
  *   TGL_FRAME_BUFFER - frame buffer
  *   TGL_Z_BUFFER - depth buffer
  */
-void tgl_clear(TGL *tgl, TGLubyte buffers);
+void tgl_clear(TGL *tgl, uint8_t buffers);
 
 /**
  * Enables or disables certain settings
@@ -105,8 +103,8 @@ void tgl_clear(TGL *tgl, TGLubyte buffers);
  * @return 0 on success, -1 on failure
  * On failure, errno is set to value specified by: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
  */
-int tgl_enable(TGL *tgl, TGLubyte settings);
-void tgl_disable(TGL *tgl, TGLubyte settings);
+int tgl_enable(TGL *tgl, uint8_t settings);
+void tgl_disable(TGL *tgl, uint8_t settings);
 
 /**
  * Various drawing functions
@@ -115,10 +113,10 @@ void tgl_disable(TGL *tgl, TGLubyte settings);
  */
 void tgl_putchar(TGL *tgl, int x, int y, char c, uint16_t color);
 void tgl_puts(TGL *tgl, int x, int y, char *str, uint16_t color);
-void tgl_point(TGL *tgl, int x, int y, float z, TGLubyte i, uint16_t color);
-void tgl_line(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, uint16_t color);
-void tgl_triangle(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, uint16_t color);
-void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, TGLubyte i0, int x1, int y1, float z1, TGLubyte i1, int x2, int y2, float z2, int i2, uint16_t color);
+void tgl_point(TGL *tgl, int x, int y, float z, uint8_t i, uint16_t color);
+void tgl_line(TGL *tgl, int x0, int y0, float z0, uint8_t i0, int x1, int y1, float z1, uint8_t i1, uint16_t color);
+void tgl_triangle(TGL *tgl, int x0, int y0, float z0, uint8_t i0, int x1, int y1, float z1, uint8_t i1, int x2, int y2, float z2, int i2, uint16_t color);
+void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, uint8_t i0, int x1, int y1, float z1, uint8_t i1, int x2, int y2, float z2, int i2, uint16_t color);
 
 #ifdef TERMGL3D
 
@@ -171,7 +169,7 @@ typedef struct TGLTransform {
  */
 typedef struct TGLTriangle {
 	TGLVec3 vertices[3];
-	TGLubyte intensity[3];
+	uint8_t intensity[3];
 } TGLTriangle;
 
 float tgl_sqr(const float val);
@@ -220,7 +218,7 @@ TGLTransform *tgl3d_get_transform(const TGL *tgl);
  *   TGL_BACK OR TGL_FRONT - face to cull
  *   TGL_CW OR TGL_CCW - winding order of triangles
  */
-void tgl3d_cull_face(TGL *tgl, TGLubyte settings);
+void tgl3d_cull_face(TGL *tgl, uint8_t settings);
 
 /**
  * Renders triangle onto framebuffer
