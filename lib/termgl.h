@@ -73,7 +73,7 @@ extern const TGLGradient gradient_min;
  *   UNIX and Windows: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
  *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
-TGL *tgl_init(const unsigned width, const unsigned height, const TGLGradient *gradient);
+TGL *tgl_init(unsigned width, unsigned height, const TGLGradient *gradient);
 
 /**
  * Frees a TGL context
@@ -212,7 +212,7 @@ void tgl3d_camera(TGL *tgl, float fov, float near_val, float far_val);
 /**
  * Gets the camera's TGLTransform transformation matrices which can be operated on using tgl3d_transform_... functions
  */
-TGLTransform *tgl3d_get_transform(TGL *tgl);
+TGLTransform *tgl3d_get_transform(const TGL *tgl);
 
 /**
  * Sets which face should be culled. Requires tgl_enable(TGL_CULL_FACE) to be run before faces will be culled
@@ -227,7 +227,7 @@ void tgl3d_cull_face(TGL *tgl, TGLubyte settings);
  * @param intermediate_shader: (allow NULL) pointer to a shader function which is executed after vertex shader (projection and clipping) and before fragment shader (drawing onto framebuffer). Parameters are a projected triangle from vertex shader, and optional data. See termgl_test.c for example
  * @param data: (allow NULL) data which is passed to intermediate_shader
  */
-void tgl3d_shader(TGL *tgl, TGLTriangle *in, uint16_t color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle*, void*));
+void tgl3d_shader(TGL *tgl, const TGLTriangle *in, uint16_t color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle*, void*));
 
 /**
  * Various functions to edit TGLTransform matrices
