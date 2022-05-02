@@ -49,8 +49,9 @@ enum {
 	TGL_Z_BUFFER = 0x04,
 /* settings */
 	TGL_DOUBLE_CHARS = 0x10,
+	TGL_PROGRESSIVE = 0x20,
 #ifdef TERMGL3D
-	TGL_CULL_FACE = 0x20,
+	TGL_CULL_FACE = 0x40,
 #endif
 };
 
@@ -94,12 +95,18 @@ int tgl_flush(TGL *tgl);
 void tgl_clear(TGL *tgl, uint8_t buffers);
 
 /**
+ * Clears the screen
+ */
+void tgl_clear_screen(void);
+
+/**
  * Enables or disables certain settings
  * @param settings: bitwise combination of settings:
  *   TGL_Z_BUFFER - depth buffer
  *   TGL_DOUBLE_CHARS - square pixels by printing 2 characters per pixel
  *   TGL_CULL_FACE - (3D ONLY) cull specified triangle faces
  *   TGL_OUTPUT_BUFFER - output buffer allowing for just one print to flush. Mush faster on most terminals, but requires a few hundred kilobytes of memory
+ *   TGL_PROGRESSIVE - Over-write previous frame. Eliminates strobing but requires call to tgl_clear_screen before drawing smaller image and after resizing terminal if terminal size was smaller than frame size
  * @return 0 on success, -1 on failure
  * On failure, errno is set to value specified by: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
  */
