@@ -129,7 +129,7 @@ void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned 
 {
 	TGL *tgl = tgl_init(res_x, res_y, &gradient_full);
 	assert(tgl);
-	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
+	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER | TGL_PROGRESSIVE));
 
 	const unsigned frame_max = 90;
 	const unsigned i_max = 255;
@@ -199,7 +199,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 	assert(tgl);
 	assert(!tgl3d_init(tgl));
 	tgl3d_cull_face(tgl, TGL_BACK | TGL_CCW);
-	assert(!tgl_enable(tgl, TGL_DOUBLE_CHARS | TGL_CULL_FACE | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER));
+	assert(!tgl_enable(tgl, TGL_DOUBLE_CHARS | TGL_CULL_FACE | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER | TGL_PROGRESSIVE));
 	tgl3d_camera(tgl, 1.57f, 0.1f, 5.f);
 
 	// Load triangles
@@ -291,7 +291,7 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 {
 	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
 	assert(tgl);
-	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
+	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER | TGL_PROGRESSIVE));
 
 	const float pi2 = 6.28319f;
 	const unsigned n = 8, d = 3;
@@ -381,6 +381,7 @@ int main(int argc, char **argv)
 	(void)argc;
 	(void)argv;
 
+	tgl_clear_screen();
 	puts(HELPTEXT_HEADER);
 	unsigned col, row;
 	tglutil_get_console_size(&col, &row, true);
@@ -389,6 +390,7 @@ int main(int argc, char **argv)
 
 	unsigned n = 0;
 	assert(scanf("%u", &n) == 1);
+	tgl_clear_screen();
 
 	switch (n) {
 	case 1u:

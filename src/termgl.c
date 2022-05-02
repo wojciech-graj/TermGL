@@ -9,7 +9,7 @@
 /**
  * Setting MACROs
  */
-#define TGL_CLEAR_SCREEN do {fputs("\033[1;1H\033[2J", stdout);} while (0)
+#define TGL_CLEAR_SCR do {fputs("\033[1;1H\033[2J", stdout);} while (0)
 #define TGL_TYPEOF __typeof__
 #define TGL_MALLOC malloc
 #define TGL_FREE free
@@ -122,6 +122,11 @@ void tgl_clear(TGL * const tgl, const uint8_t buffers)
 		memset(tgl->output_buffer, '\0', tgl->output_buffer_size);
 }
 
+void tgl_clear_screen(void)
+{
+	TGL_CLEAR_SCR;
+}
+
 TGL *tgl_init(const unsigned width, const unsigned height, const TGLGradient * gradient)
 {
 #ifdef TGL_OS_WINDOWS
@@ -224,7 +229,11 @@ char *itgl_generate_sgr(const uint16_t color_prev, const uint16_t color_cur, cha
 
 int tgl_flush(TGL * const tgl)
 {
-	TGL_CLEAR_SCREEN;
+	if (tgl->settings & TGL_PROGRESSIVE)
+		CALL_STDOUT(fputs("\033[;H", stdout), -1);
+	else
+		TGL_CLEAR_SCR;
+
 	uint16_t color = 0x0007;
 	unsigned row, col;
 	Pixel *pixel = tgl->frame_buffer;
