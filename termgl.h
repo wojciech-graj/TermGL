@@ -1,8 +1,16 @@
+/*
+ * Copyright (c) 2021-2023 Wojciech Graj
+ *
+ * Licensed under the MIT license: https://opensource.org/licenses/MIT
+ * Permission is granted to use, copy, modify, and redistribute the work.
+ * Full license information available in the project LICENSE file.
+ **/
+
 #ifndef TERMGL_H
 #define TERMGL_H
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
 #define TGL_VERSION_MAJOR 1
@@ -17,7 +25,7 @@ extern "C"{
 #endif
 
 enum /* colors */ {
-/* text colors */
+	/* text colors */
 	TGL_BLACK = 0x00,
 	TGL_RED = 0x01,
 	TGL_GREEN = 0x02,
@@ -26,7 +34,7 @@ enum /* colors */ {
 	TGL_PURPLE = 0x05,
 	TGL_CYAN = 0x06,
 	TGL_WHITE = 0x07,
-/* highlight colors */
+	/* highlight colors */
 	TGL_BLACK_BKG = 0x00,
 	TGL_RED_BKG = 0x10,
 	TGL_GREEN_BKG = 0x20,
@@ -35,7 +43,7 @@ enum /* colors */ {
 	TGL_PURPLE_BKG = 0x50,
 	TGL_CYAN_BKG = 0x60,
 	TGL_WHITE_BKG = 0x70,
-/* modifiers */
+	/* modifiers */
 	TGL_HIGH_INTENSITY = 0x08,
 	TGL_HIGH_INTENSITY_BKG = 0x80,
 	TGL_BOLD = 0x100, /* Often equivalent to TGL_HIGH_INTENSITY */
@@ -43,11 +51,11 @@ enum /* colors */ {
 };
 
 enum {
-/* buffers */
+	/* buffers */
 	TGL_FRAME_BUFFER = 0x01,
-	TGL_OUTPUT_BUFFER  = 0x02,
+	TGL_OUTPUT_BUFFER = 0x02,
 	TGL_Z_BUFFER = 0x04,
-/* settings */
+	/* settings */
 	TGL_DOUBLE_CHARS = 0x10,
 	TGL_PROGRESSIVE = 0x20,
 #ifdef TERMGL3D
@@ -137,25 +145,28 @@ enum /* winding */ {
 	TGL_CCW = 0x02,
 };
 
-#define TGL_ROTATION_MATRIX(x_, y_, z_) {\
-		{cosf(z_) * cosf(y_), -sinf(z_) * cosf(x_) + cosf(z_) * sinf(y_) * sinf(x_), sinf(z_) * sinf(x_) + cosf(z_) * sinf(y_) * cosf(x_), 0.f},\
-		{sinf(z_) * cosf(y_), cosf(z_) * cosf(x_) + sinf(z_) * sinf(y_) * sinf(x_), -cosf(z_) * sinf(x_) + sinf(z_) * sinf(y_) * cosf(x_), 0.f},\
-		{-sinf(y_), cosf(y_) * sinf(x_), cosf(y_) * cosf(x_), 0.f},\
-		{0.f, 0.f, 0.f, 1.f},\
+#define TGL_ROTATION_MATRIX(x_, y_, z_)                                                                                                                            \
+	{                                                                                                                                                          \
+		{ cosf(z_) * cosf(y_), -sinf(z_) * cosf(x_) + cosf(z_) * sinf(y_) * sinf(x_), sinf(z_) * sinf(x_) + cosf(z_) * sinf(y_) * cosf(x_), 0.f },         \
+			{ sinf(z_) * cosf(y_), cosf(z_) * cosf(x_) + sinf(z_) * sinf(y_) * sinf(x_), -cosf(z_) * sinf(x_) + sinf(z_) * sinf(y_) * cosf(x_), 0.f }, \
+			{ -sinf(y_), cosf(y_) * sinf(x_), cosf(y_) * cosf(x_), 0.f },                                                                              \
+			{ 0.f, 0.f, 0.f, 1.f },                                                                                                                    \
 	}
 
-#define TGL_SCALE_MATRIX(x_, y_, z_) {\
-		{x_,   0.f, 0.f, 0.f},\
-		{0.f, y_,   0.f, 0.f},\
-		{0.f, 0.f, z_,   0.f},\
-		{0.f, 0.f, 0.f, 1.f},\
+#define TGL_SCALE_MATRIX(x_, y_, z_)            \
+	{                                       \
+		{ x_, 0.f, 0.f, 0.f },          \
+			{ 0.f, y_, 0.f, 0.f },  \
+			{ 0.f, 0.f, z_, 0.f },  \
+			{ 0.f, 0.f, 0.f, 1.f }, \
 	}
 
-#define TGL_TRANSLATE_MATRIX(x_, y_, z_) {\
-		{1.f, 0.f, 0.f, x_},\
-		{0.f, 1.f, 0.f, y_},\
-		{0.f, 0.f, 1.f, z_},\
-		{0.f, 0.f, 0.f, 1.f},\
+#define TGL_TRANSLATE_MATRIX(x_, y_, z_)        \
+	{                                       \
+		{ 1.f, 0.f, 0.f, x_ },          \
+			{ 0.f, 1.f, 0.f, y_ },  \
+			{ 0.f, 0.f, 1.f, z_ },  \
+			{ 0.f, 0.f, 0.f, 1.f }, \
 	}
 
 typedef float TGLMat[4][4];
@@ -232,7 +243,7 @@ void tgl3d_cull_face(TGL *tgl, uint8_t settings);
  * @param intermediate_shader: (allow NULL) pointer to a shader function which is executed after vertex shader (projection and clipping) and before fragment shader (drawing onto framebuffer). Parameters are a projected triangle from vertex shader, and optional data. See termgl_test.c for example
  * @param data: (allow NULL) data which is passed to intermediate_shader
  */
-void tgl3d_shader(TGL *tgl, const TGLTriangle *in, uint16_t color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle*, void*));
+void tgl3d_shader(TGL *tgl, const TGLTriangle *in, uint16_t color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle *, void *));
 
 /**
  * Various functions to edit TGLTransform matrices
