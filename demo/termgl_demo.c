@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "termgl.h"
+#include "../termgl.h"
 
 // OS-specific imports used for sleep_ms
 #ifdef TGL_OS_WINDOWS
@@ -204,7 +204,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 
 	// Load triangles
 	TGLTriangle *trigs;
-	FILE *stl_file = fopen("demodir/utah_teapot.stl", "rb");
+	FILE *stl_file = fopen("demo/utah_teapot.stl", "rb");
 	assert(stl_file);
 	uint32_t n_trigs = stl_load(stl_file, &trigs);
 	fclose(stl_file);

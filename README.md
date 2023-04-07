@@ -1,75 +1,43 @@
 # TermGL
 
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/wojciech-graj/TermGL.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/wojciech-graj/TermGL/context:cpp)
-
 A terminal-based graphics library for both 2D and 3D graphics.\
 Works in all terminals supporting ANSI escape codes.\
 Support for Windows and UNIX.\
-C99 compliant, with no external dependencies.\
+C99 compliant, with no external dependencies. Can also be used in C++.\
 Realtime input reading from terminal for user-interaction.\
 16 Background colors, 16 foreground colors, bold and underline.
 
-## Table of Contents
+### Gallery
 
-[Gallery](https://github.com/wojciech-graj/TermGL/blob/master/README.md#Gallery)\
-[Build](https://github.com/wojciech-graj/TermGL/blob/master/README.md#Build)\
-[Documentation](https://github.com/wojciech-graj/TermGL/blob/master/README.md#Documentation)
+![LOGO](demo/logo.gif)
 
-## Gallery
+![CANYON](demo/canyon.gif)
 
-![LOGO](demodir/logo.gif)
+![TEAPOT](demo/teapot.gif)
 
-![CANYON](demodir/canyon.gif)
+### Build
 
-![TEAPOT](demodir/teapot.gif)
+You can compile `termgl.c` as you would any other C source file. You can also compile it as a shared library `libtermgl.so` by calling `make shared`. To install the shared library, `sudo make install`.
 
-## Build
+To enable 3D functionality, use the ```-DTERMGL3D``` compiler flag.\
+To enable utility functions, use the ```-DTERMGLUTIL``` compiler flag.
 
-### C
+To use TermGL in C++, compile it as a shared library and link against the `libtermgl.so` file. The `termgl.h` header can be included in C++ files.
 
-To enable 3D functionality, use the ```-DTERMGL3D``` compiler flag\
-To enable utility functions, use the ```-DTERMGLUTIL``` compiler flag\
-When running makefile, additional cflags can be specified be passing a command line argument ```CFLAGS=-DTERMGL3D\ -DTERMGLUTIL```
+To compile a demo program, run  `make demo`, creating the `termgl_demo` binary.
 
-#### Method 1: Regular source file
+To cross-compile, set the `CC` variable to the appropriate compiler.
 
-1. Add the following flags to your compiler ```-I/path/to/TermGL/lib -lm```
-2. Add termgl.c as a source file to be compiled
-
-#### Method 2: Shared library
-
-1. Run the makefile ```make shared``` to create ```lib/libtermgl.so```
-2. Copy to library directory ```sudo cp lib/libtermgl.so /usr/local/lib/libtermgl.so```
-3. Add the following flags to your compiler ```-I/path/to/TermGL/lib -ltermgl -lm```
-
-#### Method 3: Static library
-
-1. Run the makefile ```make shared``` to create ```lib/libtermgl.so```
-2. Add the following flags to your compiler ```-I/path/to/TermGL/lib -L/path/to/TermGL/lib -ltermgl -lm```
-
-### C++
-
-The above Methods 2 and 3 for C can be used to use TermGL in C++
-
-### Windows
-
-Compilation for Windows can be done by chaning the compiler using the following command line argument when running the makefile ```COMPILER=```.
-If compiling using mingw on linux, use ```COMPILER=i686-w64-mingw32-gcc-win32```.
-
-### Demo
-
-To compile a demo program, run the makefile ```make demo```.
-
-## Documentation
+### Documentation
 
 Certain settings can be changed at the top of [src/termgl.c](src/termgl.c) prior to compilation, e.g. memory allocation functions, clear screen command, compiler-specific commands.\
 The header file [lib/termgl.h](lib/termgl.h) contains brief documentation for all functions and structs.\
-Compiler-specific functionality is used, therefore it is recommened to always compile using GCC. If other compilers are used for other sections of code, see Build: Methods 2 & 3.\
-The TermGLUtil extension contains functions for reading keyboard input, but requires either Windows of UNIX headers.
+Compiler-specific functionality is used, therefore it is recommened to always compile using GCC.\
+The TermGLUtil extension contains functions for reading keyboard input, but requires either Windows or *NIX headers.
 
 ### Demo
 
-A demo can be found here: [demodir/termgl_demo.c](demodir/termgl_demo.c).\
+A demo program can be found at `demo/termgl_demo.c`.\
 Available demos and TermGL features used:
 1. Utah Teapot\
 Renders a rotating 3D Utah Teapot.

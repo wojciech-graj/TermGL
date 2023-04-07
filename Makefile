@@ -1,20 +1,28 @@
-SRC = src/termgl.c
-DEMO = demodir/termgl_demo.c
-LIB_BIN = lib/libtermgl.so
-DEMO_BIN = demo
-WARNINGS := -Wall -Wextra -Wpedantic -Wdouble-promotion -Wstrict-prototypes -Wshadow -Wduplicated-cond -Wduplicated-branches -Wjump-misses-init -Wnull-dereference -Wrestrict -Wlogical-op -Wno-maybe-uninitialized -Walloc-zero -Wformat-security -Wformat-signedness -Winit-self -Wlogical-op -Wmissing-declarations -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wswitch-enum -Wundef -Wwrite-strings -Wno-address-of-packed-member -Wno-discarded-qualifiers
-CFLAGS += -std=c99 -march=native
-LINK_CFLAGS := -Ilib -lm
-RELEASE_CFLAGS := -O3
+TARGET_DEMO = termgl_demo
+TARGET_SO = libtermgl.so
 
-ifndef COMPILER
-COMPILER = gcc
-endif
+SRC = termgl.c
+SRC_DEMO = demo/termgl_demo.c
+HEADER = termgl.h
+CFLAGS += -std=c99 -O3 -Wall -Wextra -Wpedantic
+LDFLAGS += -lm
 
-shared:
-	$(COMPILER) -c $(SRC) -shared -o $(LIB_BIN) $(WARNINGS) $(CFLAGS) $(LINK_CFLAGS) $(RELEASE_CFLAGS) -fPIC
-demo:
-	$(COMPILER) $(SRC) $(DEMO) -o $(DEMO_BIN) $(WARNINGS) $(CFLAGS) $(LINK_CFLAGS) $(RELEASE_CFLAGS) -DTERMGL3D -DTERMGLUTIL
+$(TARGET_SO): $(SRC)
+	$(CC) -c $^ -shared -o $@ $(CFLAGS) $(LDFLAGS) -fPIC -DTERMGL3D -DTERMGLUTIL
+
 clean:
-	rm -f $(DEMO_BIN)
-	rm -f $(LIB_BIN)
+	rm -f $(TARGET_DEMO)
+	rm -f $(TARGET_SO)
+
+shared: $(TARGET_SO)
+
+install: $(TARGET_SO) $(HEADER)
+	cp $(TARGET_SO) /usr/lib/$(TARGET_SO)
+	cp $(HEADER) /usr/include/$(HEADER)
+
+uninstall:
+	rm -f /usr/lib/$(TARGET_SO)
+	rm -f /usr/include/$(HEADER)
+
+demo: $(SRC_DEMO) $(SRC)
+	$(CC) $^ -o $(TARGET_DEMO) $(CFLAGS) $(LDFLAGS) -DTERMGL3D -DTERMGLUTIL
