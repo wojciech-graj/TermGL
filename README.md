@@ -30,8 +30,8 @@ To cross-compile, set the `CC` variable to the appropriate compiler.
 
 ### Documentation
 
-Certain settings can be changed at the top of [src/termgl.c](src/termgl.c) prior to compilation, e.g. memory allocation functions, clear screen command, compiler-specific commands.\
-The header file [lib/termgl.h](lib/termgl.h) contains brief documentation for all functions and structs.\
+Certain settings can be changed at the top of `termgl.c` prior to compilation, e.g. memory allocation functions, clear screen command, compiler-specific commands.\
+The header file `termgl.h` contains brief documentation for all functions and structs.\
 Compiler-specific functionality is used, therefore it is recommened to always compile using GCC.\
 The TermGLUtil extension contains functions for reading keyboard input, but requires either Windows or *NIX headers.
 
