@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2021-2023 Wojciech Graj
+ *
+ * Licensed under the MIT license: https://opensource.org/licenses/MIT
+ * Permission is granted to use, copy, modify, and redistribute the work.
+ * Full license information available in the project LICENSE file.
+ **/
+
 #include <assert.h>
 #include <math.h>
 #include <stdint.h>
@@ -16,11 +24,11 @@
 #include <time.h>
 #endif
 
-typedef struct  STLTriangle {
+typedef struct STLTriangle {
 	float normal[3]; //normal is unreliable so it is not used.
 	float vertices[3][3];
 	uint16_t attribute_bytes; //attribute bytes is unreliable so it is not used.
-} __attribute__ ((packed)) STLTriangle;
+} __attribute__((packed)) STLTriangle;
 
 #define xstr(str_) str(str_)
 #define str(str_) #str_
@@ -55,7 +63,7 @@ const uint16_t bkg_colors[] = {
 	TGL_RED_BKG,
 	TGL_GREEN_BKG,
 	TGL_YELLOW_BKG,
-	TGL_BLUE_BKG ,
+	TGL_BLUE_BKG,
 	TGL_PURPLE_BKG,
 	TGL_CYAN_BKG,
 	TGL_WHITE_BKG,
@@ -73,7 +81,7 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 
 void teapot_intermediate_shader(TGLTriangle *trig, void *data)
 {
-	TGLVec3 light_direction = {1.f, 0.f, 0.f};
+	TGLVec3 light_direction = { 1.f, 0.f, 0.f };
 	TGLTriangle *in = data;
 	TGLVec3 ab, ac, cp;
 	tgl_sub3v(in->vertices[1], in->vertices[0], ab);
@@ -117,7 +125,7 @@ void sleep_ms(const unsigned long ms)
 #ifdef TGL_OS_WINDOWS
 	Sleep(ms);
 #else
-	struct timespec ts = (struct timespec) {
+	struct timespec ts = (struct timespec){
 		.tv_sec = ms / 1000,
 		.tv_nsec = (ms % 1000ul) * 1000000,
 	};
@@ -342,11 +350,11 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
 
 	static const uint16_t modifiers[5][2] = {
-		{0, 0},
-		{TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG},
-		{TGL_BOLD, TGL_BOLD},
-		{TGL_BOLD | TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG},
-		{TGL_UNDERLINE, TGL_UNDERLINE},
+		{ 0, 0 },
+		{ TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG },
+		{ TGL_BOLD, TGL_BOLD },
+		{ TGL_BOLD | TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG },
+		{ TGL_UNDERLINE, TGL_UNDERLINE },
 	};
 
 	tgl_puts(tgl, 9, 0, "NULL", TGL_WHITE);
