@@ -205,10 +205,11 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 {
 	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
 	assert(tgl);
-	assert(!tgl3d_init(tgl));
 	tgl3d_cull_face(tgl, TGL_BACK | TGL_CCW);
 	assert(!tgl_enable(tgl, TGL_DOUBLE_CHARS | TGL_CULL_FACE | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER | TGL_PROGRESSIVE));
-	tgl3d_camera(tgl, 1.57f, 0.1f, 5.f);
+
+	TGLMat camera;
+	tgl3d_camera(camera, res_x, res_y, 1.57f, 0.1f, 5.f);
 
 	// Load triangles
 	TGLTriangle *trigs;
@@ -218,11 +219,11 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 	fclose(stl_file);
 
 	// Edit camera transformations
-	TGLTransform *camera_t = tgl3d_get_transform(tgl);
-	tgl3d_transform_scale(camera_t, 1.0f, 1.0f, 1.0f);
-	tgl3d_transform_rotate(camera_t, 2.1f, 0.f, 0.f);
-	tgl3d_transform_translate(camera_t, 0.f, 0.f, 2.f);
-	tgl3d_transform_update(camera_t);
+	TGLTransform camera_t;
+	tgl3d_transform_scale(&camera_t, 1.0f, 1.0f, 1.0f);
+	tgl3d_transform_rotate(&camera_t, 2.1f, 0.f, 0.f);
+	tgl3d_transform_translate(&camera_t, 0.f, 0.f, 1.f);
+	tgl3d_transform_update(&camera_t);
 
 	// Create transformation matrices for object
 	TGLTransform obj_t;
@@ -239,19 +240,33 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 
 		unsigned i;
 		for (i = 0; i < n_trigs; i++) {
-			TGLTriangle temp;
-			// Apply object's transformation
-			tgl3d_transform_apply(&obj_t, trigs[i].vertices, temp.vertices);
-			memcpy(temp.intensity, trigs[i].intensity, 3);
+			// Apply transformations
+			TGLTriangle view, clip;
+			TGLMat to_view;
+			tgl_mulmat(camera_t.result, obj_t.result, to_view);
+			tgl_mulmatvec(to_view, trigs[i].vertices[0], view.vertices[0]);
+			tgl_mulmatvec(to_view, trigs[i].vertices[1], view.vertices[1]);
+			tgl_mulmatvec(to_view, trigs[i].vertices[2], view.vertices[2]);
+
+			for (int j = 0; j < 3; j++) {
+				if (fabsf(view.vertices[j][2]) < 0.1f)
+					view.vertices[j][2] += copysignf(.1f, view.vertices[j][2]);
+			}
+
+			tgl_mulmatvec(camera, view.vertices[0], clip.vertices[0]);
+			tgl_mulmatvec(camera, view.vertices[1], clip.vertices[1]);
+			tgl_mulmatvec(camera, view.vertices[2], clip.vertices[2]);
+
+			memcpy(clip.intensity, trigs[i].intensity, 3);
 
 			//Draw to framebuffer
-			tgl3d_shader(tgl, &temp, TGL_WHITE | TGL_BOLD, true, &temp, &teapot_intermediate_shader);
+			tgl3d_shader(tgl, &clip, TGL_WHITE | TGL_BOLD, true, &clip, &teapot_intermediate_shader);
 		}
 
 		assert(!tgl_flush(tgl));
 		tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER);
 
-		n += dn;
+		n += dn * .5;
 
 		sleep_ms(frametime_ms);
 	}

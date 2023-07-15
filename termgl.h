@@ -60,6 +60,8 @@ enum {
 	TGL_PROGRESSIVE = 0x20,
 #ifdef TERMGL3D
 	TGL_CULL_FACE = 0x40,
+	/* internal - do not use */
+	TGL_CULL_BIT = 0x80,
 #endif
 };
 
@@ -209,6 +211,9 @@ void tgl_cross(const float vec1[3], const float vec2[3], float res[3]);
 
 void tgl_norm3(float vec[3]);
 
+void tgl_mulmatvec(TGLMat mat, const TGLVec3 vec, TGLVec3 res);
+void tgl_mulmat(TGLMat mat1, TGLMat mat2, TGLMat res);
+
 /**
  * Initializes 3D component of TermGL
  * @param tgl: a TGL context previously created using tgl_init()
@@ -223,12 +228,7 @@ int tgl3d_init(TGL *tgl);
  * @param near_val: distance to near clipping plane
  * @param far_val: distance to far clipping plane
  */
-void tgl3d_camera(TGL *tgl, float fov, float near_val, float far_val);
-
-/**
- * Gets the camera's TGLTransform transformation matrices which can be operated on using tgl3d_transform_... functions
- */
-TGLTransform *tgl3d_get_transform(const TGL *tgl);
+void tgl3d_camera(TGLMat camera, int width, int height, float fov, float near_val, float far_val);
 
 /**
  * Sets which face should be culled. Requires tgl_enable(TGL_CULL_FACE) to be run before faces will be culled
@@ -243,7 +243,7 @@ void tgl3d_cull_face(TGL *tgl, uint8_t settings);
  * @param intermediate_shader: (allow NULL) pointer to a shader function which is executed after vertex shader (projection and clipping) and before fragment shader (drawing onto framebuffer). Parameters are a projected triangle from vertex shader, and optional data. See termgl_test.c for example
  * @param data: (allow NULL) data which is passed to intermediate_shader
  */
-void tgl3d_shader(TGL *tgl, const TGLTriangle *in, uint16_t color, bool fill, void *data, void (*intermediate_shader)(TGLTriangle *, void *));
+void tgl3d_shader(TGL *const tgl, const TGLTriangle *in, const uint16_t color, const bool fill, void *const data, void (*intermediate_shader)(TGLTriangle *, void *));
 
 /**
  * Various functions to edit TGLTransform matrices
