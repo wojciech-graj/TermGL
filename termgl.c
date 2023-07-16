@@ -416,11 +416,11 @@ void tgl_interp_lin_2d(const uint8_t u, const uint8_t v, uint16_t *const color, 
 	*c = tgl_grad_char(interp->grad, (interp->uv0 + (interp->u1 - interp->uv0) * u + (interp->v1 - interp->uv0) * v) / 256);
 }
 
-void tgl_triangle(TGL *const tgl, const int x0, const int y0, const float z0, const int x1, const int y1, const float z1, const int x2, const int y2, const float z2, TGLInterp *const t, const void *data)
+void tgl_triangle(TGL *const tgl, const int x0, const int y0, const float z0, const uint8_t u0, const uint8_t v0, const int x1, const int y1, const float z1, const uint8_t u1, const int x2, const int y2, const float z2, const uint8_t v1, TGLInterp *const t, const void *data)
 {
-	tgl_line(tgl, x0, y0, z0, 0, 0, x1, y1, z1, 255, 0, t, data);
-	tgl_line(tgl, x0, y0, z0, 0, 0, x2, y2, z2, 0, 255, t, data);
-	tgl_line(tgl, x1, y1, z1, 255, 0, x2, y2, z2, 0, 255, t, data);
+	tgl_line(tgl, x0, y0, z0, u0, v0, x1, y1, z1, u1, v0, t, data);
+	tgl_line(tgl, x0, y0, z0, u0, v0, x2, y2, z2, u0, v1, t, data);
+	tgl_line(tgl, x1, y1, z1, u1, v0, x2, y2, z2, u0, v1, t, data);
 }
 
 void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t u0, const uint8_t v0, const int x1, const float z1, const uint8_t u1, const uint8_t v1, const int y, TGLInterp *t, const void *const data)
@@ -447,10 +447,10 @@ void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t
 /* Solution based on Bresenham's line algorithm
  * adapted from: https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h
  **/
-void tgl_triangle_fill(TGL *const tgl, int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2, float z2, TGLInterp *const t, const void *const data)
+void tgl_triangle_fill(TGL *const tgl, int x0, int y0, float z0, const uint8_t u0, const uint8_t v0, int x1, int y1, float z1, uint8_t u1, int x2, int y2, float z2, const uint8_t v1, TGLInterp *const t, const void *data)
 {
-	uint8_t verts_u[3] = { 0, 255, 0 };
-	uint8_t verts_v[3] = { 0, 0, 255 };
+	uint8_t verts_u[3] = { u0, u1, u0 };
+	uint8_t verts_v[3] = { v0, v0, v1 };
 	itgl_clip(tgl, &x0, &y0);
 	itgl_clip(tgl, &x1, &y1);
 	itgl_clip(tgl, &x2, &y2);
