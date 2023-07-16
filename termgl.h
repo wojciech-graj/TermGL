@@ -89,15 +89,8 @@ typedef struct TGLInterpLin2D {
 	const TGLGradient *grad;
 } TGLInterpLin2D;
 
-typedef struct TGLInterpWrap {
-	TGLInterp *t;
-	const void *data;
-} TGLInterpWrap;
-
 void tgl_interp_lin_1d(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
 void tgl_interp_lin_2d(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
-void tgl_interp_wrap_u2v(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
-void tgl_interp_wrap_lin_u(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
 
 char tgl_grad_char(const TGLGradient *grad, uint8_t intensity);
 
@@ -161,9 +154,9 @@ void tgl_disable(TGL *tgl, uint8_t settings);
 void tgl_putchar(TGL *tgl, int x, int y, char c, uint16_t color);
 void tgl_puts(TGL *tgl, int x, int y, const char *str, uint16_t color);
 void tgl_point(TGL *tgl, int x, int y, float z, char c, uint16_t color);
-void tgl_line(TGL *tgl, int x0, int y0, float z0, int x1, int y1, float z1, TGLInterp *t, const void *data);
+void tgl_line(TGL *tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, uint8_t v1, TGLInterp *const t, const void *data);
 void tgl_triangle(TGL *tgl, int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2, float z2, TGLInterp *t, const void *data);
-void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2, float z2, TGLInterp *t, const void *data);
+void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2, float z2, TGLInterp *t, const void *data);g
 
 #ifdef TERMGL3D
 

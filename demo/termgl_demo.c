@@ -347,7 +347,7 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 			.color = color,
 			.grad = &gradient_min,
 		};
-		tgl_line(tgl, x0, y0, 0, x1, y1, 0, &tgl_interp_lin_1d, &interp);
+		tgl_line(tgl, x0, y0, 0, 0, 0, x1, y1, 0, 255, 0, &tgl_interp_lin_1d, &interp);
 
 		/*TGLInterpLin2D interp2d = {
 			.uv0 = 0,

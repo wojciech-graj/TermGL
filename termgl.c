@@ -326,17 +326,17 @@ void tgl_point(TGL *const tgl, int x, int y, const float z, const char c, const 
 }
 
 /* Bresenham's line algorithm */
-void tgl_line(TGL *const tgl, int x0, int y0, float z0, int x1, int y1, float z1, TGLInterp *const t, const void *const data)
+void tgl_line(TGL *const tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, uint8_t v1, TGLInterp *const t, const void *const data)
 {
 	itgl_clip(tgl, &x0, &y0);
 	itgl_clip(tgl, &x1, &y1);
 	if (abs(y1 - y0) < abs(x1 - x0)) {
-		bool swapped = false;
 		if (x0 > x1) {
 			SWAP(x1, x0);
 			SWAP(y1, y0);
 			SWAP(z1, z0);
-			swapped = true;
+			SWAP(u1, u0);
+			SWAP(v1, v0);
 		}
 		int dx = x1 - x0;
 		int dy = y1 - y0;
@@ -353,7 +353,7 @@ void tgl_line(TGL *const tgl, int x0, int y0, float z0, int x1, int y1, float z1
 		for (x = x0; x <= x1; x++) {
 			uint16_t color;
 			char c;
-			t((swapped ? (x1 - x) : (x - x0)) * 255 / dx, 0, &color, &c, data);
+			t(((x - x0) * u1 + (x1 - x) * u0) / dx, ((x - x0) * v1 + (x1 - x) * v0) / dx, &color, &c, data);
 			SET_PIXEL(tgl, x, y,
 				((x - x0) * z1 + (x1 - x) * z0) / dx,
 				c, color);
@@ -365,12 +365,12 @@ void tgl_line(TGL *const tgl, int x0, int y0, float z0, int x1, int y1, float z1
 			}
 		}
 	} else {
-		bool swapped = false;
 		if (y0 > y1) {
 			SWAP(x1, x0);
 			SWAP(y1, y0);
 			SWAP(z1, z0);
-			swapped = true;
+			SWAP(u1, u0);
+			SWAP(v1, v0);
 		}
 		int dx = x1 - x0;
 		int dy = y1 - y0;
@@ -387,7 +387,7 @@ void tgl_line(TGL *const tgl, int x0, int y0, float z0, int x1, int y1, float z1
 		for (y = y0; y <= y1; y++) {
 			uint16_t color;
 			char c;
-			t((swapped ? (y1 - y) : (y - y0)) * 255 / dy, 0, &color, &c, data);
+			t(((y - y0) * u1 + (y1 - y) * u0) / dy, ((y - y0) * v1 + (y1 - y) * v0) / dy, &color, &c, data);
 			SET_PIXEL(tgl, x, y,
 				((y - y0) * z1 + (y1 - y) * z0) / dx,
 				c, color);
@@ -416,29 +416,11 @@ void tgl_interp_lin_2d(const uint8_t u, const uint8_t v, uint16_t *const color, 
 	*c = tgl_grad_char(interp->grad, (interp->uv0 + (interp->u1 - interp->uv0) * u + (interp->v1 - interp->uv0) * v) / 256);
 }
 
-void tgl_interp_wrap_u2v(const uint8_t u, const uint8_t v, uint16_t *const color, char *const c, const void *const data)
-{
-	const TGLInterpWrap *const map = data;
-	map->t(0, u, color, c, map->data);
-	(void)v;
-}
-
-void tgl_interp_wrap_lin_u(const uint8_t u, const uint8_t v, uint16_t *const color, char *const c, const void *const data)
-{
-	const TGLInterpWrap *const map = data;
-	map->t(1 - u, u, color, c, map->data);
-	(void)v;
-}
-
 void tgl_triangle(TGL *const tgl, const int x0, const int y0, const float z0, const int x1, const int y1, const float z1, const int x2, const int y2, const float z2, TGLInterp *const t, const void *data)
 {
-	tgl_line(tgl, x0, y0, z0, x1, y1, z1, t, data);
-	TGLInterpWrap wrap = {
-		.t = t,
-		.data = data,
-	};
-	tgl_line(tgl, x0, y0, z0, x2, y2, z2, &tgl_interp_wrap_u2v, &wrap);
-	tgl_line(tgl, x1, y1, z1, x2, y2, z2, &tgl_interp_wrap_lin_u, &wrap);
+	tgl_line(tgl, x0, y0, z0, 0, 0, x1, y1, z1, 255, 0, t, data);
+	tgl_line(tgl, x0, y0, z0, 0, 0, x2, y2, z2, 0, 255, t, data);
+	tgl_line(tgl, x1, y1, z1, 255, 0, x2, y2, z2, 0, 255, t, data);
 }
 
 void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t u0, const uint8_t v0, const int x1, const float z1, const uint8_t u1, const uint8_t v1, const int y, TGLInterp *t, const void *const data)
