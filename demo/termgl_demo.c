@@ -33,8 +33,8 @@ typedef struct STLTriangle {
 #define xstr(str_) str(str_)
 #define str(str_) #str_
 
-const char *HELPTEXT_HEADER = "TermGL v" xstr(TGL_VERSION_MAJOR) "." xstr(TGL_VERSION_MINOR) " Demo Utility";
-const char *HELPTEXT_BODY = "\
+static const char *HELPTEXT_HEADER = "TermGL v" xstr(TGL_VERSION_MAJOR) "." xstr(TGL_VERSION_MINOR) " Demo Utility";
+static const char *HELPTEXT_BODY = "\
 Select a Demo:\n\
 1. Utah Teapot\n\
     Renders a rotating 3D Utah Teapot.\n\
@@ -48,7 +48,7 @@ Select a Demo:\n\
     Displays keyboard input in realtime.\
 ";
 
-const uint16_t fg_colors[] = {
+static const uint16_t fg_colors[] = {
 	TGL_BLACK,
 	TGL_RED,
 	TGL_GREEN,
@@ -58,7 +58,7 @@ const uint16_t fg_colors[] = {
 	TGL_CYAN,
 	TGL_WHITE,
 };
-const uint16_t bkg_colors[] = {
+static const uint16_t bkg_colors[] = {
 	TGL_BLACK_BKG,
 	TGL_RED_BKG,
 	TGL_GREEN_BKG,
@@ -69,33 +69,34 @@ const uint16_t bkg_colors[] = {
 	TGL_WHITE_BKG,
 };
 
-void teapot_intermediate_shader(TGLTriangle *trig, void *data);
+static void teapot_shader(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
 uint32_t stl_load(FILE *file, TGLTriangle **triangles);
-void sleep_ms(const unsigned long ms);
+static void sleep_ms(const unsigned long ms);
 
-void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
-void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
-void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
-void demo_star(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
-void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
+static void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
+static void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
+static void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
+static void demo_star(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
+static void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 
-void teapot_intermediate_shader(TGLTriangle *trig, void *data)
+void teapot_shader(const uint8_t u, const uint8_t v, uint16_t *color, char *c, const void *const data)
 {
-	TGLVec3 light_direction = { 1.f, 0.f, 0.f };
-	TGLTriangle *in = data;
+	const TGLVec3 light_direction = { 1.f, 0.f, 0.f };
+	const TGLVec3 *const in = (const TGLVec3 *)data;
 	TGLVec3 ab, ac, cp;
-	tgl_sub3v(in->vertices[1], in->vertices[0], ab);
-	tgl_sub3v(in->vertices[2], in->vertices[0], ac);
+	tgl_sub3v(in[1], in[0], ab);
+	tgl_sub3v(in[2], in[0], ac);
 	tgl_cross(ab, ac, cp);
-	float dp = tgl_dot3(cp, light_direction);
+	const float dp = tgl_dot3(cp, light_direction);
 	float light_mul;
 	if (signbit(dp))
 		light_mul = 0.15f;
 	else
 		light_mul = acosf(dp / (tgl_mag3(cp) * tgl_mag3(light_direction))) / -3.14159f + 1.f;
-	trig->intensity[0] *= light_mul;
-	trig->intensity[1] *= light_mul;
-	trig->intensity[2] *= light_mul;
+	*color = TGL_WHITE | TGL_BOLD;
+	*c = tgl_grad_char(&gradient_min, light_mul * 255);
+	(void)u;
+	(void)v;
 }
 
 uint32_t stl_load(FILE *file, TGLTriangle **triangles)
@@ -114,8 +115,7 @@ uint32_t stl_load(FILE *file, TGLTriangle **triangles)
 	for (i = 0; i < num_triangles; i++) {
 		STLTriangle stl_triangle;
 		assert(fread(&stl_triangle, sizeof(STLTriangle), 1, file) == 1);
-		memcpy((*triangles)[i].vertices, stl_triangle.vertices, sizeof(float[3][3]));
-		memset((*triangles)[i].intensity, 255, 3);
+		memcpy((*triangles)[i], stl_triangle.vertices, sizeof(float[3][3]));
 	}
 	return num_triangles;
 }
@@ -125,7 +125,7 @@ void sleep_ms(const unsigned long ms)
 #ifdef TGL_OS_WINDOWS
 	Sleep(ms);
 #else
-	struct timespec ts = (struct timespec){
+	const struct timespec ts = (struct timespec){
 		.tv_sec = ms / 1000,
 		.tv_nsec = (ms % 1000ul) * 1000000,
 	};
@@ -203,13 +203,15 @@ void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned 
 
 void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
 {
-	/*TGL *tgl = tgl_init(res_x, res_y);
+	TGL *const tgl = tgl_init(res_x, res_y);
 	assert(tgl);
 	tgl3d_cull_face(tgl, TGL_BACK | TGL_CCW);
 	assert(!tgl_enable(tgl, TGL_DOUBLE_CHARS | TGL_CULL_FACE | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER | TGL_PROGRESSIVE));
 
 	TGLMat camera;
 	tgl3d_camera(camera, res_x, res_y, 1.57f, 0.1f, 5.f);
+	TGLVertexShaderSimple vertex_shader_data;
+	memcpy(vertex_shader_data.mat, camera, sizeof(TGLMat));
 
 	// Load triangles
 	TGLTriangle *trigs;
@@ -241,26 +243,20 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 		unsigned i;
 		for (i = 0; i < n_trigs; i++) {
 			// Apply transformations
-			TGLTriangle view, clip;
+			TGLVec3 view[3];
 			TGLMat to_view;
-			tgl_mulmat(camera_t.result, obj_t.result, to_view);
-			tgl_mulmatvec3(to_view, trigs[i].vertices[0], view.vertices[0]);
-			tgl_mulmatvec3(to_view, trigs[i].vertices[1], view.vertices[1]);
-			tgl_mulmatvec3(to_view, trigs[i].vertices[2], view.vertices[2]);
+			tgl_mulmat((const TGLVec4*)camera_t.result, (const TGLVec4*)obj_t.result, to_view);
+			tgl_mulmatvec3((const TGLVec4*)to_view, trigs[i][0], view[0]);
+			tgl_mulmatvec3((const TGLVec4*)to_view, trigs[i][1], view[1]);
+			tgl_mulmatvec3((const TGLVec4*)to_view, trigs[i][2], view[2]);
 
 			for (int j = 0; j < 3; j++) {
-				if (fabsf(view.vertices[j][2]) < 0.1f)
-					view.vertices[j][2] += copysignf(.1f, view.vertices[j][2]);
+				if (fabsf(view[j][2]) < 0.1f)
+					view[j][2] += copysignf(.1f, view[j][2]);
 			}
 
-			tgl_mulmatvec3(camera, view.vertices[0], clip.vertices[0]);
-			tgl_mulmatvec3(camera, view.vertices[1], clip.vertices[1]);
-			tgl_mulmatvec3(camera, view.vertices[2], clip.vertices[2]);
-
-			memcpy(clip.intensity, trigs[i].intensity, 3);
-
 			//Draw to framebuffer
-			tgl3d_shader(tgl, &clip, TGL_WHITE | TGL_BOLD, true, &clip, &teapot_intermediate_shader);
+			tgl3d_shader(tgl, (const TGLVec3 *)view, true, &tgl_vertex_shader_simple, &vertex_shader_data, &teapot_shader, &view);
 		}
 
 		assert(!tgl_flush(tgl));
@@ -272,7 +268,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 	}
 
 	tgl_delete(tgl);
-	free(trigs);*/
+	free(trigs);
 }
 
 void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
@@ -335,19 +331,16 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 		unsigned y0 = half_res_y + half_res_y * sinf(angle0) * 0.9f;
 		unsigned y1 = half_res_y + half_res_y * sinf(angle1) * 0.9f;
 
-		uint8_t i0 = rand() % 256;
-		uint8_t i1 = rand() % 256;
-
 		uint16_t color = fg_colors[rand() % 8]
 			| bkg_colors[rand() % 8];
 
 		TGLInterpLin1D interp = {
-			.u0 = i0,
-			.u1 = i1,
+			.u0 = rand() % 256,
+			.u1 = rand() % 256,
 			.color = color,
 			.grad = &gradient_min,
 		};
-		//tgl_line(tgl, x0, y0, 0, 0, 0, x1, y1, 0, 255, 0, &tgl_interp_lin_1d, &interp);
+		tgl_line(tgl, x0, y0, 0, 0, 0, x1, y1, 0, 255, 0, &tgl_interp_lin_1d, &interp);
 
 		/*TGLInterpLin2D interp2d = {
 			.uv0 = 0,
