@@ -347,7 +347,7 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 			.color = color,
 			.grad = &gradient_min,
 		};
-		tgl_line(tgl, x0, y0, 0, 0, 0, x1, y1, 0, 255, 0, &tgl_interp_lin_1d, &interp);
+		//tgl_line(tgl, x0, y0, 0, 0, 0, x1, y1, 0, 255, 0, &tgl_interp_lin_1d, &interp);
 
 		/*TGLInterpLin2D interp2d = {
 			.uv0 = 0,
@@ -357,8 +357,8 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 			.grad = &gradient_min,
 		};
 
-		tgl_triangle_fill(tgl, 1, 4, 0, 10, 1, 0, 15, 8, 0, &tgl_interp_lin_2d, &interp2d);
-		tgl_triangle(tgl, 11, 4, 0, 20, 1, 0, 25, 8, 0, &tgl_interp_lin_2d, &interp2d);*/
+		tgl_triangle_fill(tgl, 1, 4, 0, 0, 0, 10, 1, 0, 255, 15, 8, 0, 255, &tgl_interp_lin_2d, &interp2d);
+		tgl_triangle(tgl, 11, 4, 0, 0, 0, 20, 1, 0, 255, 25, 8, 0, 255, &tgl_interp_lin_2d, &interp2d);*/
 		//TODO : delete commented-out code
 
 		assert(!tgl_flush(tgl));
