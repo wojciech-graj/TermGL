@@ -66,10 +66,40 @@ enum {
 };
 
 typedef struct TGL TGL;
+
+typedef void TGLInterp(uint8_t, uint8_t, uint16_t *, char *, const void *);
+
 typedef struct TGLGradient {
 	unsigned length;
 	const char *grad;
 } TGLGradient;
+
+typedef struct TGLInterpLin1D {
+	uint8_t u0;
+	uint8_t u1;
+	uint16_t color;
+	const TGLGradient *grad;
+} TGLInterpLin1D;
+
+typedef struct TGLInterpLin2D {
+	uint8_t uv0;
+	uint8_t u1;
+	uint8_t v1;
+	uint16_t color;
+	const TGLGradient *grad;
+} TGLInterpLin2D;
+
+typedef struct TGLInterpWrap {
+	TGLInterp *t;
+	const void *data;
+} TGLInterpWrap;
+
+void tgl_interp_lin_1d(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
+void tgl_interp_lin_2d(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
+void tgl_interp_wrap_u2v(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
+void tgl_interp_wrap_lin_u(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
+
+char tgl_grad_char(const TGLGradient *grad, uint8_t intensity);
 
 extern const TGLGradient gradient_full;
 extern const TGLGradient gradient_min;
@@ -82,7 +112,7 @@ extern const TGLGradient gradient_min;
  *   UNIX and Windows: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
  *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
-TGL *tgl_init(unsigned width, unsigned height, const TGLGradient *gradient);
+TGL *tgl_init(unsigned width, unsigned height);
 
 /**
  * Frees a TGL context
@@ -129,11 +159,11 @@ void tgl_disable(TGL *tgl, uint8_t settings);
  * @param color: bitwise combination of colors defined in above enum. Can use one foreground (TGL_COLOR) and one background (TGL_COLOR_BKG), and any modifiers
  */
 void tgl_putchar(TGL *tgl, int x, int y, char c, uint16_t color);
-void tgl_puts(TGL *tgl, int x, int y, char *str, uint16_t color);
-void tgl_point(TGL *tgl, int x, int y, float z, uint8_t i, uint16_t color);
-void tgl_line(TGL *tgl, int x0, int y0, float z0, uint8_t i0, int x1, int y1, float z1, uint8_t i1, uint16_t color);
-void tgl_triangle(TGL *tgl, int x0, int y0, float z0, uint8_t i0, int x1, int y1, float z1, uint8_t i1, int x2, int y2, float z2, int i2, uint16_t color);
-void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, uint8_t i0, int x1, int y1, float z1, uint8_t i1, int x2, int y2, float z2, int i2, uint16_t color);
+void tgl_puts(TGL *tgl, int x, int y, const char *str, uint16_t color);
+void tgl_point(TGL *tgl, int x, int y, float z, char c, uint16_t color);
+void tgl_line(TGL *tgl, int x0, int y0, float z0, int x1, int y1, float z1, TGLInterp *t, const void *data);
+void tgl_triangle(TGL *tgl, int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2, float z2, TGLInterp *t, const void *data);
+void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2, float z2, TGLInterp *t, const void *data);
 
 #ifdef TERMGL3D
 
@@ -173,6 +203,7 @@ enum /* winding */ {
 
 typedef float TGLMat[4][4];
 typedef float TGLVec3[3];
+typedef float TGLVec4[4];
 
 /**
  * Struct which stores 3D trasnformation matrices. Operated on via helper functions (tgl3d_transform_...)
@@ -191,6 +222,9 @@ typedef struct TGLTriangle {
 	TGLVec3 vertices[3];
 	uint8_t intensity[3];
 } TGLTriangle;
+
+typedef void TGLVertexShader(const TGLVec3, TGLVec4, const void *);
+typedef void TGLFragmentShader(const TGLVec3, uint16_t *, char *, const void *);
 
 float tgl_sqr(const float val);
 float tgl_mag3(const float vec[3]);
@@ -211,7 +245,8 @@ void tgl_cross(const float vec1[3], const float vec2[3], float res[3]);
 
 void tgl_norm3(float vec[3]);
 
-void tgl_mulmatvec(TGLMat mat, const TGLVec3 vec, TGLVec3 res);
+void tgl_mulmatvec(TGLMat mat, const TGLVec3 vec, TGLVec4 res);
+void tgl_mulmatvec3(TGLMat mat, const TGLVec3 vec, TGLVec3 res);
 void tgl_mulmat(TGLMat mat1, TGLMat mat2, TGLMat res);
 
 /**
@@ -243,7 +278,7 @@ void tgl3d_cull_face(TGL *tgl, uint8_t settings);
  * @param intermediate_shader: (allow NULL) pointer to a shader function which is executed after vertex shader (projection and clipping) and before fragment shader (drawing onto framebuffer). Parameters are a projected triangle from vertex shader, and optional data. See termgl_test.c for example
  * @param data: (allow NULL) data which is passed to intermediate_shader
  */
-void tgl3d_shader(TGL *const tgl, const TGLTriangle *in, const uint16_t color, const bool fill, void *const data, void (*intermediate_shader)(TGLTriangle *, void *));
+void tgl3d_shader(TGL *const tgl, const TGLTriangle *in, const bool fill, TGLVertexShader *vert_shader, void *const vert_data, TGLFragmentShader *frag_shader, void *const frag_data);
 
 /**
  * Various functions to edit TGLTransform matrices

@@ -56,7 +56,6 @@ struct TGL {
 	unsigned output_buffer_size;
 	bool z_buffer_enabled;
 	uint8_t settings;
-	const TGLGradient *gradient;
 };
 
 #define SWAP(a_, b_)           \
@@ -88,8 +87,6 @@ struct TGL {
 		}                                                         \
 	} while (0)
 
-#define INTENSITY_TO_CHAR(tgl_, intensity_) tgl_->gradient->grad[tgl_->gradient->length * intensity_ / 256u]
-
 #define CALL(stmt_, retval_)             \
 	do {                             \
 		if (TGL_UNLIKELY(stmt_)) \
@@ -97,23 +94,26 @@ struct TGL {
 	} while (0)
 #define CALL_STDOUT(stmt_, retval_) CALL((stmt_) == EOF, retval_)
 
-const char grad_full_chars[] = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 const TGLGradient gradient_full = {
 	.length = 70,
-	.grad = grad_full_chars,
+	.grad = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
 };
 
-const char grad_min_chars[] = " .:-=+*#%@";
 const TGLGradient gradient_min = {
 	.length = 10,
-	.grad = grad_min_chars,
+	.grad = " .:-=+*#%@",
 };
 
 static void itgl_clip(const TGL *tgl, int *x, int *y);
 static char *itgl_generate_sgr(uint16_t color_prev, uint16_t color_cur, char *buf);
-static void itgl_horiz_line(TGL *tgl, int x0, float z0, uint8_t i0, int x1, float z1, uint8_t i1, int y, uint16_t color);
+static void itgl_horiz_line(TGL *tgl, int x0, float z0, uint8_t u0, uint8_t v0, int x1, float z1, uint8_t u1, uint8_t v1, int y, TGLInterp *t, const void *data);
 
-inline void itgl_clip(const TGL *tgl, int *const x, int *const y)
+char tgl_grad_char(const TGLGradient *const grad, const uint8_t intensity)
+{
+	return grad->grad[grad->length * intensity / 256u];
+}
+
+inline void itgl_clip(const TGL *const tgl, int *const x, int *const y)
 {
 	*x = MAX(MIN(tgl->max_x, *x), 0);
 	*y = MAX(MIN(tgl->max_y, *y), 0);
@@ -142,7 +142,7 @@ void tgl_clear_screen(void)
 	TGL_CLEAR_SCR;
 }
 
-TGL *tgl_init(const unsigned width, const unsigned height, const TGLGradient *gradient)
+TGL *tgl_init(const unsigned width, const unsigned height)
 {
 #ifdef TGL_OS_WINDOWS
 	static bool win_init = false;
@@ -173,7 +173,6 @@ TGL *tgl_init(const unsigned width, const unsigned height, const TGLGradient *gr
 		.max_y = height - 1,
 		.frame_size = width * height,
 		.frame_buffer = TGL_MALLOC(sizeof(Pixel) * width * height),
-		.gradient = gradient,
 	};
 	if (!tgl->frame_buffer) {
 		TGL_FREE(tgl);
@@ -303,7 +302,7 @@ void tgl_putchar(TGL *const tgl, int x, int y, const char c, const uint16_t colo
 	SET_PIXEL_RAW(tgl, x, y, c, color);
 }
 
-void tgl_puts(TGL *const tgl, const int x, int y, char *str, const uint16_t color)
+void tgl_puts(TGL *const tgl, const int x, int y, const char *str, const uint16_t color)
 {
 	int cur_x = x;
 	while (*str) {
@@ -320,23 +319,24 @@ void tgl_puts(TGL *const tgl, const int x, int y, char *str, const uint16_t colo
 	}
 }
 
-void tgl_point(TGL *const tgl, int x, int y, const float z, const uint8_t i, const uint16_t color)
+void tgl_point(TGL *const tgl, int x, int y, const float z, const char c, const uint16_t color)
 {
 	itgl_clip(tgl, &x, &y);
-	SET_PIXEL(tgl, x, y, z, INTENSITY_TO_CHAR(tgl, i), color);
+	SET_PIXEL(tgl, x, y, z, c, color);
 }
 
 /* Bresenham's line algorithm */
-void tgl_line(TGL *const tgl, int x0, int y0, float z0, uint8_t i0, int x1, int y1, float z1, uint8_t i1, uint16_t color)
+void tgl_line(TGL *const tgl, int x0, int y0, float z0, int x1, int y1, float z1, TGLInterp *const t, const void *const data)
 {
 	itgl_clip(tgl, &x0, &y0);
 	itgl_clip(tgl, &x1, &y1);
 	if (abs(y1 - y0) < abs(x1 - x0)) {
+		bool swapped = false;
 		if (x0 > x1) {
 			SWAP(x1, x0);
 			SWAP(y1, y0);
 			SWAP(z1, z0);
-			SWAP(i1, i0);
+			swapped = true;
 		}
 		int dx = x1 - x0;
 		int dy = y1 - y0;
@@ -351,9 +351,12 @@ void tgl_line(TGL *const tgl, int x0, int y0, float z0, uint8_t i0, int x1, int 
 		int y = y0;
 		int x;
 		for (x = x0; x <= x1; x++) {
+			uint16_t color;
+			char c;
+			t((swapped ? (x1 - x) : (x - x0)) * 255 / dx, 0, &color, &c, data);
 			SET_PIXEL(tgl, x, y,
 				((x - x0) * z1 + (x1 - x) * z0) / dx,
-				INTENSITY_TO_CHAR(tgl, ((x - x0) * i1 + (x1 - x) * i0) / dx), color);
+				c, color);
 			if (d > 0) {
 				y += yi;
 				d += 2 * (dy - dx);
@@ -362,11 +365,12 @@ void tgl_line(TGL *const tgl, int x0, int y0, float z0, uint8_t i0, int x1, int 
 			}
 		}
 	} else {
+		bool swapped = false;
 		if (y0 > y1) {
 			SWAP(x1, x0);
 			SWAP(y1, y0);
 			SWAP(z1, z0);
-			SWAP(i1, i0);
+			swapped = true;
 		}
 		int dx = x1 - x0;
 		int dy = y1 - y0;
@@ -381,9 +385,12 @@ void tgl_line(TGL *const tgl, int x0, int y0, float z0, uint8_t i0, int x1, int 
 		int x = x0;
 		int y;
 		for (y = y0; y <= y1; y++) {
+			uint16_t color;
+			char c;
+			t((swapped ? (y1 - y) : (y - y0)) * 255 / dy, 0, &color, &c, data);
 			SET_PIXEL(tgl, x, y,
 				((y - y0) * z1 + (y1 - y) * z0) / dx,
-				INTENSITY_TO_CHAR(tgl, ((y - y0) * i1 + (y1 - y) * i0) / dy), color);
+				c, color);
 			if (d > 0) {
 				x += xi;
 				d += 2 * (dx - dy);
@@ -394,32 +401,74 @@ void tgl_line(TGL *const tgl, int x0, int y0, float z0, uint8_t i0, int x1, int 
 	}
 }
 
-void tgl_triangle(TGL *const tgl, const int x0, const int y0, const float z0, const uint8_t i0, const int x1, const int y1, const float z1, const uint8_t i1, const int x2, const int y2, const float z2, const int i2, const uint16_t color)
+void tgl_interp_lin_1d(const uint8_t u, const uint8_t v, uint16_t *const color, char *const c, const void *const data)
 {
-	tgl_line(tgl, x0, y0, z0, i0, x1, y1, z1, i1, color);
-	tgl_line(tgl, x1, y1, z1, i1, x2, y2, z2, i2, color);
-	tgl_line(tgl, x2, y2, z2, i2, x0, y0, z0, i0, color);
+	const TGLInterpLin1D *const interp = data;
+	*color = interp->color;
+	*c = tgl_grad_char(interp->grad, (interp->u0 * u + interp->u1 * (255 - u)) / 256);
+	(void)v;
 }
 
-void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t i0, const int x1, const float z1, const uint8_t i1, const int y, const uint16_t color)
+void tgl_interp_lin_2d(const uint8_t u, const uint8_t v, uint16_t *const color, char *const c, const void *const data)
+{
+	const TGLInterpLin2D *const interp = data;
+	*color = interp->color;
+	*c = tgl_grad_char(interp->grad, (interp->uv0 + (interp->u1 - interp->uv0) * u + (interp->v1 - interp->uv0) * v) / 256);
+}
+
+void tgl_interp_wrap_u2v(const uint8_t u, const uint8_t v, uint16_t *const color, char *const c, const void *const data)
+{
+	const TGLInterpWrap *const map = data;
+	map->t(0, u, color, c, map->data);
+	(void)v;
+}
+
+void tgl_interp_wrap_lin_u(const uint8_t u, const uint8_t v, uint16_t *const color, char *const c, const void *const data)
+{
+	const TGLInterpWrap *const map = data;
+	map->t(1 - u, u, color, c, map->data);
+	(void)v;
+}
+
+void tgl_triangle(TGL *const tgl, const int x0, const int y0, const float z0, const int x1, const int y1, const float z1, const int x2, const int y2, const float z2, TGLInterp *const t, const void *data)
+{
+	tgl_line(tgl, x0, y0, z0, x1, y1, z1, t, data);
+	TGLInterpWrap wrap = {
+		.t = t,
+		.data = data,
+	};
+	tgl_line(tgl, x0, y0, z0, x2, y2, z2, &tgl_interp_wrap_u2v, &wrap);
+	tgl_line(tgl, x1, y1, z1, x2, y2, z2, &tgl_interp_wrap_lin_u, &wrap);
+}
+
+void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t u0, const uint8_t v0, const int x1, const float z1, const uint8_t u1, const uint8_t v1, const int y, TGLInterp *t, const void *const data)
 {
 	if (x0 == x1) {
-		SET_PIXEL(tgl, x0, y, z0, INTENSITY_TO_CHAR(tgl, i0), color);
+		char c;
+		uint16_t color;
+		t(u0, v0, &color, &c, data);
+		SET_PIXEL(tgl, x0, y, z0, c, color);
 	} else {
 		const int dx = x1 - x0;
 		int x;
-		for (x = x0; x <= x1; x++)
+		for (x = x0; x <= x1; x++) {
+			char c;
+			uint16_t color;
+			t(((x - x0) * u1 + (x1 - x) * u0) / dx, ((x - x0) * v1 + (x1 - x) * v0) / dx, &color, &c, data);
 			SET_PIXEL(tgl, x, y,
 				((x - x0) * z1 + (x1 - x) * z0) / dx,
-				INTENSITY_TO_CHAR(tgl, ((x - x0) * i1 + (x1 - x) * i0) / dx), color);
+				c, color);
+		}
 	}
 }
 
 /* Solution based on Bresenham's line algorithm
  * adapted from: https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h
  **/
-void tgl_triangle_fill(TGL *const tgl, int x0, int y0, float z0, uint8_t i0, int x1, int y1, float z1, uint8_t i1, int x2, int y2, float z2, int i2, const uint16_t color)
+void tgl_triangle_fill(TGL *const tgl, int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2, float z2, TGLInterp *const t, const void *const data)
 {
+	uint8_t verts_u[3] = { 0, 255, 0 };
+	uint8_t verts_v[3] = { 0, 0, 255 };
 	itgl_clip(tgl, &x0, &y0);
 	itgl_clip(tgl, &x1, &y1);
 	itgl_clip(tgl, &x2, &y2);
@@ -427,19 +476,22 @@ void tgl_triangle_fill(TGL *const tgl, int x0, int y0, float z0, uint8_t i0, int
 		SWAP(x1, x0);
 		SWAP(y1, y0);
 		SWAP(z1, z0);
-		SWAP(i1, i0);
+		SWAP(verts_u[1], verts_u[0]);
+		SWAP(verts_v[1], verts_v[0]);
 	}
 	if (y2 < y0) {
 		SWAP(x2, x0);
 		SWAP(y2, y0);
 		SWAP(z2, z0);
-		SWAP(i2, i0);
+		SWAP(verts_u[2], verts_u[0]);
+		SWAP(verts_v[2], verts_v[0]);
 	}
 	if (y2 < y1) {
 		SWAP(x1, x2);
 		SWAP(y1, y2);
 		SWAP(z1, z2);
-		SWAP(i1, i2);
+		SWAP(verts_u[1], verts_u[2]);
+		SWAP(verts_v[1], verts_v[2]);
 	}
 
 	int t0xp, t1xp, minx, maxx, t0x, t1x;
@@ -530,15 +582,17 @@ void tgl_triangle_fill(TGL *const tgl, int x0, int y0, float z0, uint8_t i0, int
 		if (maxx < t1x)
 			maxx = t1x;
 
-		int vi0 = ((y - y0) * i1 + (y1 - y) * i0) / (y1 - y0);
-		int vi1 = ((y - y0) * i2 + (y2 - y) * i0) / (y2 - y0);
+		uint8_t u0 = ((y - y0) * verts_u[1] + (y1 - y) * verts_u[0]) / (y1 - y0);
+		uint8_t v0 = ((y - y0) * verts_v[1] + (y1 - y) * verts_v[0]) / (y1 - y0);
+		uint8_t u1 = ((y - y0) * verts_u[2] + (y2 - y) * verts_u[0]) / (y2 - y0);
+		uint8_t v1 = ((y - y0) * verts_v[2] + (y2 - y) * verts_v[0]) / (y2 - y0);
 		float vz0 = ((y - y0) * z1 + (y1 - y) * z0) / (y1 - y0);
 		float vz1 = ((y - y0) * z1 + (y1 - y) * z0) / (y1 - y0);
 
 		if (t0x < t1x)
-			itgl_horiz_line(tgl, minx, vz0, vi0, maxx, vz1, vi1, y, color);
+			itgl_horiz_line(tgl, minx, vz0, u0, v0, maxx, vz1, u1, v1, y, t, data);
 		else
-			itgl_horiz_line(tgl, minx, vz1, vi1, maxx, vz0, vi0, y, color);
+			itgl_horiz_line(tgl, minx, vz1, u1, v1, maxx, vz0, u0, v0, y, t, data);
 
 		if (!changed0)
 			t0x += signx0;
@@ -622,17 +676,19 @@ LBL_NEXT:
 			maxx = t1x;
 
 		if (y1 != y2) {
-			int vi0 = ((y - y0) * i2 + (y2 - y) * i0) / (y2 - y0);
-			int vi1 = ((y - y1) * i2 + (y2 - y) * i1) / (y2 - y1);
+			uint8_t u0 = ((y - y0) * verts_u[2] + (y2 - y) * verts_u[0]) / (y2 - y0);
+			uint8_t v0 = ((y - y0) * verts_v[2] + (y2 - y) * verts_v[0]) / (y2 - y0);
+			uint8_t u1 = ((y - y1) * verts_u[2] + (y2 - y) * verts_u[1]) / (y2 - y1);
+			uint8_t v1 = ((y - y1) * verts_v[2] + (y2 - y) * verts_v[1]) / (y2 - y1);
 			float vz0 = ((y - y0) * z2 + (y2 - y) * z0) / (y2 - y0);
 			float vz1 = ((y - y1) * z2 + (y2 - y) * z1) / (y2 - y1);
 
 			if (t1x < t0x)
-				itgl_horiz_line(tgl, minx, vz0, vi0, maxx, vz1, vi1, y, color);
+				itgl_horiz_line(tgl, minx, vz0, u0, v0, maxx, vz1, u1, v1, y, t, data);
 			else
-				itgl_horiz_line(tgl, minx, vz1, vi1, maxx, vz0, vi0, y, color);
+				itgl_horiz_line(tgl, minx, vz1, u1, v1, maxx, vz0, u0, v0, y, t, data);
 		} else {
-			itgl_horiz_line(tgl, minx, z1, i1, maxx, z2, i2, y, color);
+			itgl_horiz_line(tgl, minx, z1, verts_u[1], verts_v[1], maxx, z2, verts_u[2], verts_v[2], y, t, data);
 		}
 
 		if (!changed0)
@@ -644,7 +700,7 @@ LBL_NEXT:
 		y += 1;
 		if (y > y2)
 			return;
-	}
+	};
 }
 
 int tgl_enable(TGL *const tgl, const uint8_t settings)
@@ -662,9 +718,10 @@ int tgl_enable(TGL *const tgl, const uint8_t settings)
 		/* Longest SGR code: \033[22;24;XX;10Xm (length 15)
 		 * Maximum 16 chars per pixel: SGR + 2 x char
 		 * 1 Newline character per line
+		 * 1 NUL terminator
 		 * SGR clear code: \033[0m (length 4)
 		 */
-		tgl->output_buffer_size = 17u * tgl->frame_size + tgl->height + 4u;
+		tgl->output_buffer_size = 17u * tgl->frame_size + tgl->height + 4u + 1u;
 		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
 		if (!tgl->output_buffer)
 			return -1;
@@ -723,9 +780,9 @@ const TGLVec3 clip_plane_normals[6] = {
 	[CLIP_TOP] = { 0.f, -1.f, 0.f },
 };
 
-static float itgl_distance_point_plane(const TGLVec3 normal, const TGLVec3 point);
+static float itgl_distance_point_plane(const TGLVec3 normal, const TGLVec4 point);
 static float itgl_line_intersect_plane(const TGLVec3 normal, const TGLVec3 start, const TGLVec3 end, TGLVec3 point);
-static unsigned itgl_clip_triangle_plane(const TGLVec3 normal, const TGLTriangle *in, TGLTriangle out[2]);
+static unsigned itgl_clip_triangle_plane(const TGLVec3 normal, const TGLVec4 in[3], TGLVec4 out[2][3]);
 
 __attribute__((const)) float tgl_sqr(const float val)
 {
@@ -813,7 +870,15 @@ void tgl_norm3(float vec[3])
 	tgl_mul3s(vec, 1.f / tgl_mag3(vec), vec);
 }
 
-void tgl_mulmatvec(TGLMat mat, const TGLVec3 vec, TGLVec3 res)
+void tgl_mulmatvec(TGLMat mat, const TGLVec3 vec, TGLVec4 res)
+{
+	res[0] = tgl_dot43(mat[0], vec);
+	res[1] = tgl_dot43(mat[1], vec);
+	res[2] = tgl_dot43(mat[2], vec);
+	res[3] = tgl_dot43(mat[3], vec);
+}
+
+void tgl_mulmatvec3(TGLMat mat, const TGLVec3 vec, TGLVec3 res)
 {
 	res[0] = tgl_dot43(mat[0], vec);
 	res[1] = tgl_dot43(mat[1], vec);
@@ -842,9 +907,9 @@ void tgl_mulmat(TGLMat mat1, TGLMat mat2, TGLMat res)
 		}
 }
 
-__attribute__((const)) float itgl_distance_point_plane(const TGLVec3 normal, const TGLVec3 point)
+__attribute__((const)) float itgl_distance_point_plane(const TGLVec3 normal, const TGLVec4 point)
 {
-	return tgl_dot3(normal, point) + 1.f;
+	return tgl_dot3(normal, point) + point[3];
 }
 
 void tgl3d_camera(TGLMat camera, const int width, const int height, const float fov, const float near_val, const float far_val)
@@ -887,9 +952,9 @@ void tgl3d_transform_update(TGLTransform *const transform)
 
 void tgl3d_transform_apply(TGLTransform *const transform, TGLVec3 in[3], TGLVec3 out[3])
 {
-	tgl_mulmatvec(transform->result, in[0], out[0]);
-	tgl_mulmatvec(transform->result, in[1], out[1]);
-	tgl_mulmatvec(transform->result, in[2], out[2]);
+	tgl_mulmatvec3(transform->result, in[0], out[0]);
+	tgl_mulmatvec3(transform->result, in[1], out[1]);
+	tgl_mulmatvec3(transform->result, in[2], out[2]);
 }
 
 float itgl_line_intersect_plane(const TGLVec3 normal, const TGLVec3 start, const TGLVec3 end, TGLVec3 point)
@@ -902,18 +967,18 @@ float itgl_line_intersect_plane(const TGLVec3 normal, const TGLVec3 start, const
 	return distance;
 }
 
-unsigned itgl_clip_triangle_plane(const TGLVec3 normal, const TGLTriangle *in, TGLTriangle out[2])
+unsigned itgl_clip_triangle_plane(const TGLVec3 normal, const TGLVec4 in[3], TGLVec4 out[2][3])
 {
-	const TGLVec3 di = {
-		itgl_distance_point_plane(normal, in->vertices[0]),
-		itgl_distance_point_plane(normal, in->vertices[1]),
-		itgl_distance_point_plane(normal, in->vertices[2]),
+	/*const TGLVec3 di = {
+		itgl_distance_point_plane(normal, in[0]),
+		itgl_distance_point_plane(normal, in[1]),
+		itgl_distance_point_plane(normal, in[2]),
 	};
 
 	unsigned n_inside = 0, n_outside = 0;
 	unsigned inside[3], outside[3];
-#pragma GCC unroll 3
-	for (unsigned i = 0; i < 3; i++) {
+	unsigned i;
+	for (i = 0; i < 3; i++) {
 		if (di[i] >= 0.f)
 			inside[n_inside++] = i;
 		else
@@ -955,77 +1020,70 @@ unsigned itgl_clip_triangle_plane(const TGLVec3 normal, const TGLTriangle *in, T
 		return 2;
 	}
 	TGL_UNREACHABLE();
+	return 0;*/
 	return 0;
 }
 
-void tgl3d_shader(TGL *const tgl, const TGLTriangle *in, const uint16_t color, const bool fill, void *const data, void (*intermediate_shader)(TGLTriangle *, void *))
+void tgl3d_shader(TGL *const tgl, const TGLTriangle *in, const bool fill, TGLVertexShader *vert_shader, void *const vert_data, TGLFragmentShader *frag_shader, void *const frag_data)
 {
-	TGLTriangle out = *in;
+	/*TGLTriangle out = *in;
+
+	TGLVec4 verts[3];
+	unsigned i;
+	for (i = 0; i < 3; i++)
+		vert_shader(in->vertices[i], verts[i], vert_data);
 
 	if (tgl->settings & TGL_CULL_FACE) {
 		TGLVec3 ab, ac, cp;
-		tgl_sub3v(out.vertices[1], out.vertices[0], ab);
-		tgl_sub3v(out.vertices[2], out.vertices[0], ac);
+		tgl_sub3v(verts[1], verts[0], ab);
+		tgl_sub3v(verts[2], verts[0], ac);
 		tgl_cross(ab, ac, cp);
 		if (XOR(tgl->settings & TGL_CULL_BIT, signbit(cp[2])))
 			return;
 	}
 
-	TGLTriangle trig_buffer[127]; /* the size of this buffer assumes a pathological case which is probably impossible */
-	memcpy(&trig_buffer[0], &out, sizeof(TGLTriangle));
-	unsigned buffer_offset = 0;
-	unsigned n_cur_stage = 1;
-	unsigned p, i;
-	for (p = 0; p < 6; p++) {
-		unsigned n_next_stage = 0;
-		for (i = 0; i < n_cur_stage; i++)
-			n_next_stage += itgl_clip_triangle_plane(clip_plane_normals[p], &trig_buffer[i + buffer_offset], &trig_buffer[buffer_offset + n_cur_stage + n_next_stage]);
-		buffer_offset += n_cur_stage;
-		n_cur_stage = n_next_stage;
+	TGLVec3 v[3];
+	for (i = 0; i < 3; i++) {
+		v[i][0] = verts[i][0] / verts[i][3];
+		v[i][1] = verts[i][1] / verts[i][3];
+		v[i][2] = verts[i][2] / verts[i][3];
 	}
 
 	float half_width = tgl->width * .5f;
-	float half_height = tgl->height * .5f;
+	float half_height = tgl->height * .5f;*/
 
-	for (i = 0; i < n_cur_stage; i++) {
-		const TGLTriangle *trig = &trig_buffer[i + buffer_offset];
-
-		/* INTERMEDIATE SHADER */
-		if (intermediate_shader)
-			intermediate_shader(trig, data);
-
-		/* FRAGMENT SHADER */
-		if (fill)
-			tgl_triangle_fill(tgl,
-				MAP_COORD(half_width, trig->vertices[0][0]),
-				MAP_COORD(half_height, trig->vertices[0][1]),
-				trig->vertices[0][2],
-				trig->intensity[0],
-				MAP_COORD(half_width, trig->vertices[1][0]),
-				MAP_COORD(half_height, trig->vertices[1][1]),
-				trig->vertices[1][2],
-				trig->intensity[1],
-				MAP_COORD(half_width, trig->vertices[2][0]),
-				MAP_COORD(half_height, trig->vertices[2][1]),
-				trig->vertices[2][2],
-				trig->intensity[2],
-				color);
-		else
-			tgl_triangle(tgl,
-				MAP_COORD(half_width, trig->vertices[0][0]),
-				MAP_COORD(half_height, trig->vertices[0][1]),
-				trig->vertices[0][2],
-				trig->intensity[0],
-				MAP_COORD(half_width, trig->vertices[1][0]),
-				MAP_COORD(half_height, trig->vertices[1][1]),
-				trig->vertices[1][2],
-				trig->intensity[1],
-				MAP_COORD(half_width, trig->vertices[2][0]),
-				MAP_COORD(half_height, trig->vertices[2][1]),
-				trig->vertices[2][2],
-				trig->intensity[2],
-				color);
-	}
+	/* FRAGMENT SHADER */
+	/*if (fill)
+		tgl_triangle_fill(tgl,
+			MAP_COORD(half_width, trig->vertices[0][0]),
+			MAP_COORD(half_height, trig->vertices[0][1]),
+			trig->vertices[0][2],
+			trig->intensity[0],
+			MAP_COORD(half_width, trig->vertices[1][0]),
+			MAP_COORD(half_height, trig->vertices[1][1]),
+			trig->vertices[1][2],
+			trig->intensity[1],
+			MAP_COORD(half_width, trig->vertices[2][0]),
+			MAP_COORD(half_height, trig->vertices[2][1]),
+			trig->vertices[2][2],
+			trig->intensity[2],
+			color);
+	else
+		tgl_triangle(tgl,
+			MAP_COORD(half_width, trig->vertices[0][0]),
+			MAP_COORD(half_height, trig->vertices[0][1]),
+			trig->vertices[0][2],
+			trig->intensity[0],
+			MAP_COORD(half_width, trig->vertices[1][0]),
+			MAP_COORD(half_height, trig->vertices[1][1]),
+			trig->vertices[1][2],
+			trig->intensity[1],
+			MAP_COORD(half_width, trig->vertices[2][0]),
+			MAP_COORD(half_height, trig->vertices[2][1]),
+			trig->vertices[2][2],
+			trig->intensity[2],
+			color);
+			}*/
 }
 
 void tgl3d_cull_face(TGL *tgl, const uint8_t settings)
