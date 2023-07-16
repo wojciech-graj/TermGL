@@ -197,6 +197,7 @@ enum /* winding */ {
 typedef float TGLMat[4][4];
 typedef float TGLVec3[3];
 typedef float TGLVec4[4];
+typedef TGLVec3 TGLTriangle[3];
 
 /**
  * Struct which stores 3D trasnformation matrices. Operated on via helper functions (tgl3d_transform_...)
@@ -208,16 +209,13 @@ typedef struct TGLTransform {
 	TGLMat result;
 } TGLTransform;
 
-/**
- * Struct which stores vertices and intensities of a triangle. Passed to rendering function
- */
-typedef struct TGLTriangle {
-	TGLVec3 vertices[3];
-	uint8_t intensity[3];
-} TGLTriangle;
+typedef struct TGLVertexShaderSimple {
+	TGLMat mat;
+} TGLVertexShaderSimple;
 
 typedef void TGLVertexShader(const TGLVec3, TGLVec4, const void *);
-typedef void TGLFragmentShader(const TGLVec3, uint16_t *, char *, const void *);
+
+void tgl_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *data);
 
 float tgl_sqr(const float val);
 float tgl_mag3(const float vec[3]);
@@ -238,9 +236,9 @@ void tgl_cross(const float vec1[3], const float vec2[3], float res[3]);
 
 void tgl_norm3(float vec[3]);
 
-void tgl_mulmatvec(TGLMat mat, const TGLVec3 vec, TGLVec4 res);
-void tgl_mulmatvec3(TGLMat mat, const TGLVec3 vec, TGLVec3 res);
-void tgl_mulmat(TGLMat mat1, TGLMat mat2, TGLMat res);
+void tgl_mulmatvec(const TGLMat mat, const TGLVec3 vec, TGLVec4 res);
+void tgl_mulmatvec3(const TGLMat mat, const TGLVec3 vec, TGLVec3 res);
+void tgl_mulmat(const TGLMat mat1, const TGLMat mat2, TGLMat res);
 
 /**
  * Initializes 3D component of TermGL
@@ -271,7 +269,7 @@ void tgl3d_cull_face(TGL *tgl, uint8_t settings);
  * @param intermediate_shader: (allow NULL) pointer to a shader function which is executed after vertex shader (projection and clipping) and before fragment shader (drawing onto framebuffer). Parameters are a projected triangle from vertex shader, and optional data. See termgl_test.c for example
  * @param data: (allow NULL) data which is passed to intermediate_shader
  */
-void tgl3d_shader(TGL *const tgl, const TGLTriangle *in, const bool fill, TGLVertexShader *vert_shader, void *const vert_data, TGLFragmentShader *frag_shader, void *const frag_data);
+void tgl3d_shader(TGL *const tgl, const TGLTriangle in, const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLInterp *frag_shader, const void *const frag_data);
 
 /**
  * Various functions to edit TGLTransform matrices
