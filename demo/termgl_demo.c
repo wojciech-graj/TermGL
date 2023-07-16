@@ -135,7 +135,7 @@ void sleep_ms(const unsigned long ms)
 
 void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
 {
-	TGL *tgl = tgl_init(res_x, res_y, &gradient_full);
+	TGL *tgl = tgl_init(res_x, res_y);
 	assert(tgl);
 	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER | TGL_PROGRESSIVE));
 
@@ -173,7 +173,7 @@ void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned 
 					i++;
 				}
 				if (i < i_max) // Set pixel with intensity dependent on i
-					tgl_point(tgl, pix_x, pix_y, 0.f, i * 255u / i_max, TGL_WHITE | TGL_BOLD);
+					tgl_putchar(tgl, pix_x, pix_y, tgl_grad_char(&gradient_full, i * 255u / i_max), TGL_WHITE | TGL_BOLD);
 				x += dx;
 			}
 			y += dy;
@@ -203,7 +203,7 @@ void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned 
 
 void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
 {
-	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
+	/*TGL *tgl = tgl_init(res_x, res_y);
 	assert(tgl);
 	tgl3d_cull_face(tgl, TGL_BACK | TGL_CCW);
 	assert(!tgl_enable(tgl, TGL_DOUBLE_CHARS | TGL_CULL_FACE | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER | TGL_PROGRESSIVE));
@@ -222,7 +222,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 	TGLTransform camera_t;
 	tgl3d_transform_scale(&camera_t, 1.0f, 1.0f, 1.0f);
 	tgl3d_transform_rotate(&camera_t, 2.1f, 0.f, 0.f);
-	tgl3d_transform_translate(&camera_t, 0.f, 0.f, 1.f);
+	tgl3d_transform_translate(&camera_t, 0.f, 0.f, 2.f);
 	tgl3d_transform_update(&camera_t);
 
 	// Create transformation matrices for object
@@ -244,18 +244,18 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 			TGLTriangle view, clip;
 			TGLMat to_view;
 			tgl_mulmat(camera_t.result, obj_t.result, to_view);
-			tgl_mulmatvec(to_view, trigs[i].vertices[0], view.vertices[0]);
-			tgl_mulmatvec(to_view, trigs[i].vertices[1], view.vertices[1]);
-			tgl_mulmatvec(to_view, trigs[i].vertices[2], view.vertices[2]);
+			tgl_mulmatvec3(to_view, trigs[i].vertices[0], view.vertices[0]);
+			tgl_mulmatvec3(to_view, trigs[i].vertices[1], view.vertices[1]);
+			tgl_mulmatvec3(to_view, trigs[i].vertices[2], view.vertices[2]);
 
 			for (int j = 0; j < 3; j++) {
 				if (fabsf(view.vertices[j][2]) < 0.1f)
 					view.vertices[j][2] += copysignf(.1f, view.vertices[j][2]);
 			}
 
-			tgl_mulmatvec(camera, view.vertices[0], clip.vertices[0]);
-			tgl_mulmatvec(camera, view.vertices[1], clip.vertices[1]);
-			tgl_mulmatvec(camera, view.vertices[2], clip.vertices[2]);
+			tgl_mulmatvec3(camera, view.vertices[0], clip.vertices[0]);
+			tgl_mulmatvec3(camera, view.vertices[1], clip.vertices[1]);
+			tgl_mulmatvec3(camera, view.vertices[2], clip.vertices[2]);
 
 			memcpy(clip.intensity, trigs[i].intensity, 3);
 
@@ -272,12 +272,12 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 	}
 
 	tgl_delete(tgl);
-	free(trigs);
+	free(trigs);*/
 }
 
 void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
 {
-	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
+	TGL *tgl = tgl_init(res_x, res_y);
 	assert(tgl);
 	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
 
@@ -312,7 +312,7 @@ void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned fr
 
 void demo_star(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
 {
-	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
+	TGL *tgl = tgl_init(res_x, res_y);
 	assert(tgl);
 	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER | TGL_PROGRESSIVE));
 
@@ -341,7 +341,25 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 		uint16_t color = fg_colors[rand() % 8]
 			| bkg_colors[rand() % 8];
 
-		tgl_line(tgl, x0, y0, 0, i0, x1, y1, 0, i1, color);
+		TGLInterpLin1D interp = {
+			.u0 = i0,
+			.u1 = i1,
+			.color = color,
+			.grad = &gradient_min,
+		};
+		tgl_line(tgl, x0, y0, 0, x1, y1, 0, &tgl_interp_lin_1d, &interp);
+
+		/*TGLInterpLin2D interp2d = {
+			.uv0 = 0,
+			.u1 = 192,
+			.v1 = 32,
+			.color = color,
+			.grad = &gradient_min,
+		};
+
+		tgl_triangle_fill(tgl, 1, 4, 0, 10, 1, 0, 15, 8, 0, &tgl_interp_lin_2d, &interp2d);
+		tgl_triangle(tgl, 11, 4, 0, 20, 1, 0, 25, 8, 0, &tgl_interp_lin_2d, &interp2d);*/
+		//TODO : delete commented-out code
 
 		assert(!tgl_flush(tgl));
 		// Buffer clear not yet required
@@ -360,7 +378,7 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
 {
 	(void)frametime_ms;
-	TGL *tgl = tgl_init(res_x, res_y, &gradient_min);
+	TGL *tgl = tgl_init(res_x, res_y);
 	assert(tgl);
 	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
 
