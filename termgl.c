@@ -676,10 +676,10 @@ int tgl_enable(TGL *const tgl, const uint8_t settings)
 	}
 	if (enable & TGL_OUTPUT_BUFFER) {
 		/* Longest SGR code: \033[22;24;XX;10Xm (length 15)
-		 * Maximum 16 chars per pixel: SGR + 2 x char
+		 * Maximum 17 chars per pixel: SGR + 2 x char
 		 * 1 Newline character per line
-		 * 1 NUL terminator
 		 * SGR clear code: \033[0m (length 4)
+		 * 1 NUL terminator
 		 */
 		tgl->output_buffer_size = 17u * tgl->frame_size + tgl->height + 4u + 1u;
 		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
@@ -992,11 +992,13 @@ unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, TGLUVTriangle *in,
 
 void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const uv)[2], const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLPixelShader *frag_shader, const void *const frag_data)
 {
+	/* Vertex shader */
 	TGLVec4 verts[3];
 	unsigned i;
 	for (i = 0; i < 3; i++)
 		vert_shader(in[i], verts[i], vert_data);
 
+	/* Backface culling */
 	if (tgl->settings & TGL_CULL_FACE) {
 		TGLVec3 ab, ac, cp;
 		tgl_sub3v(verts[1], verts[0], ab);
@@ -1006,6 +1008,7 @@ void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const
 			return;
 	}
 
+	/* Clipping */
 	TGLUVTriangle trig_buffer[127]; /* the size of this buffer assumes a pathological case which is probably impossible */
 	memcpy(&(trig_buffer[0].verts), verts, sizeof(TGLVec4[3]));
 	memcpy(&(trig_buffer[0].uv), uv, sizeof(uint8_t[3][2]));
@@ -1024,14 +1027,15 @@ void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const
 	float half_width = tgl->width * .5f;
 	float half_height = tgl->height * .5f;
 
-	/* FRAGMENT SHADER */
+	/* Drawing */
 	for (i = 0; i < n_cur_stage; i++) {
 		TGLVec3 v[3];
 		unsigned j;
 		for (j = 0; j < 3; j++) {
-			v[j][0] = trig_buffer[i + buffer_offset].verts[j][0] / trig_buffer[i + buffer_offset].verts[j][3];
-			v[j][1] = trig_buffer[i + buffer_offset].verts[j][1] / trig_buffer[i + buffer_offset].verts[j][3];
-			v[j][2] = trig_buffer[i + buffer_offset].verts[j][2] / trig_buffer[i + buffer_offset].verts[j][3];
+			float invw = 1.f / trig_buffer[i + buffer_offset].verts[j][3];
+			v[j][0] = trig_buffer[i + buffer_offset].verts[j][0] * invw;
+			v[j][1] = trig_buffer[i + buffer_offset].verts[j][1] * invw;
+			v[j][2] = trig_buffer[i + buffer_offset].verts[j][2] * invw;
 		}
 
 		if (fill)
