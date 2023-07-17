@@ -69,8 +69,8 @@ static const uint16_t bkg_colors[] = {
 	TGL_WHITE_BKG,
 };
 
-static void teapot_shader(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
-uint32_t stl_load(FILE *file, TGLTriangle **triangles);
+static void teapot_pixel_shader(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
+static uint32_t stl_load(FILE *file, TGLTriangle **triangles);
 static void sleep_ms(const unsigned long ms);
 
 static void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
@@ -79,7 +79,7 @@ static void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsi
 static void demo_star(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 
-void teapot_shader(const uint8_t u, const uint8_t v, uint16_t *color, char *c, const void *const data)
+void teapot_pixel_shader(const uint8_t u, const uint8_t v, uint16_t *color, char *c, const void *const data)
 {
 	const TGLVec3 light_direction = { 1.f, 0.f, 0.f };
 	const TGLVec3 *const in = (const TGLVec3 *)data;
@@ -236,6 +236,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 	const float dn = 0.02f;
 	float n = 0;
 
+	// Determine UVs for triangle vertices
 	const uint8_t uv[3][2] = {
 		{
 			0,
@@ -259,14 +260,14 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 
 		unsigned i;
 		for (i = 0; i < n_trigs; i++) {
-			// Apply transformations
+			// Generate final transformation matrix
 			TGLMat to_view;
 			TGLVertexShaderSimple vertex_shader_data;
 			tgl_mulmat((const TGLVec4 *)camera_t, (const TGLVec4 *)obj_t, to_view);
 			tgl_mulmat((const TGLVec4 *)camera, (const TGLVec4 *)to_view, vertex_shader_data.mat);
 
-			//Draw to framebuffer
-			tgl_triangle_3d(tgl, (const TGLVec3 *)trigs[i], uv, true, &tgl3d_vertex_shader_simple, &vertex_shader_data, &teapot_shader, &trigs[i]);
+			// Draw to framebuffer
+			tgl_triangle_3d(tgl, (const TGLVec3 *)trigs[i], uv, true, &tgl3d_vertex_shader_simple, &vertex_shader_data, &teapot_pixel_shader, &trigs[i]);
 		}
 
 		assert(!tgl_flush(tgl));
