@@ -60,14 +60,14 @@ enum {
 	TGL_PROGRESSIVE = 0x20,
 #ifdef TERMGL3D
 	TGL_CULL_FACE = 0x40,
-	/* internal - do not use */
+	/* internal - DO NOT USE */
 	TGL_CULL_BIT = 0x80,
 #endif
 };
 
 typedef struct TGL TGL;
 
-typedef void TGLInterp(uint8_t, uint8_t, uint16_t *, char *, const void *);
+typedef void TGLPixelShader(uint8_t, uint8_t, uint16_t *, char *, const void *);
 
 typedef struct TGLVert {
 	int x;
@@ -77,33 +77,26 @@ typedef struct TGLVert {
 	uint8_t v;
 } TGLVert;
 
+#ifndef TERMGL_MINIMAL
+
 typedef struct TGLGradient {
 	unsigned length;
 	const char *grad;
 } TGLGradient;
 
-typedef struct TGLInterpLin1D {
-	uint8_t u0;
-	uint8_t u1;
+typedef struct TGLPixelShaderSimple {
 	uint16_t color;
 	const TGLGradient *grad;
-} TGLInterpLin1D;
-
-typedef struct TGLInterpLin2D {
-	uint8_t uv0;
-	uint8_t u1;
-	uint8_t v1;
-	uint16_t color;
-	const TGLGradient *grad;
-} TGLInterpLin2D;
-
-void tgl_interp_lin_1d(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
-void tgl_interp_lin_2d(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
-
-char tgl_grad_char(const TGLGradient *grad, uint8_t intensity);
+} TGLPixelShaderSimple;
 
 extern const TGLGradient gradient_full;
 extern const TGLGradient gradient_min;
+
+void tgl_pixel_shader_simple(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
+
+char tgl_grad_char(const TGLGradient *grad, uint8_t intensity);
+
+#endif /* ~TERMGL_MINIMAL */
 
 /**
  * Initializes a TGL struct which must be passed to all functions as context
@@ -128,7 +121,7 @@ void tgl_delete(TGL *tgl);
 int tgl_flush(TGL *tgl);
 
 /**
- * Clears frame buffers
+ * Clears buffers
  * @param buffers: bitwise combination of buffers:
  *   TGL_FRAME_BUFFER - frame buffer
  *   TGL_Z_BUFFER - depth buffer
@@ -155,16 +148,18 @@ int tgl_enable(TGL *tgl, uint8_t settings);
 void tgl_disable(TGL *tgl, uint8_t settings);
 
 /**
- * Various drawing functions
- * @param i: intensity of pixel which will be mapped to character on gradient
- * @param color: bitwise combination of colors defined in above enum. Can use one foreground (TGL_COLOR) and one background (TGL_COLOR_BKG), and any modifiers
+ * Printing functions similar to those provided by stdio.h
  */
 void tgl_putchar(TGL *tgl, int x, int y, char c, uint16_t color);
 void tgl_puts(TGL *tgl, int x, int y, const char *str, uint16_t color);
+
+/**
+ * Drawing functions
+ */
 void tgl_point(TGL *tgl, int x, int y, float z, char c, uint16_t color);
-void tgl_line(TGL *tgl, TGLVert v0, TGLVert v1, TGLInterp *t, const void *data);
-void tgl_triangle(TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLInterp *t, const void *data);
-void tgl_triangle_fill(TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLInterp *t, const void *data);
+void tgl_line(TGL *tgl, TGLVert v0, TGLVert v1, TGLPixelShader *t, const void *data);
+void tgl_triangle(TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *t, const void *data);
+void tgl_triangle_fill(TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *t, const void *data);
 
 #ifdef TERMGL3D
 
@@ -178,52 +173,33 @@ enum /* winding */ {
 	TGL_CCW = 0x02,
 };
 
-#define TGL_ROTATION_MATRIX(x_, y_, z_)                                                                                                                            \
-	{                                                                                                                                                          \
-		{ cosf(z_) * cosf(y_), -sinf(z_) * cosf(x_) + cosf(z_) * sinf(y_) * sinf(x_), sinf(z_) * sinf(x_) + cosf(z_) * sinf(y_) * cosf(x_), 0.f },         \
-			{ sinf(z_) * cosf(y_), cosf(z_) * cosf(x_) + sinf(z_) * sinf(y_) * sinf(x_), -cosf(z_) * sinf(x_) + sinf(z_) * sinf(y_) * cosf(x_), 0.f }, \
-			{ -sinf(y_), cosf(y_) * sinf(x_), cosf(y_) * cosf(x_), 0.f },                                                                              \
-			{ 0.f, 0.f, 0.f, 1.f },                                                                                                                    \
-	}
-
-#define TGL_SCALE_MATRIX(x_, y_, z_)            \
-	{                                       \
-		{ x_, 0.f, 0.f, 0.f },          \
-			{ 0.f, y_, 0.f, 0.f },  \
-			{ 0.f, 0.f, z_, 0.f },  \
-			{ 0.f, 0.f, 0.f, 1.f }, \
-	}
-
-#define TGL_TRANSLATE_MATRIX(x_, y_, z_)        \
-	{                                       \
-		{ 1.f, 0.f, 0.f, x_ },          \
-			{ 0.f, 1.f, 0.f, y_ },  \
-			{ 0.f, 0.f, 1.f, z_ },  \
-			{ 0.f, 0.f, 0.f, 1.f }, \
-	}
-
 typedef float TGLMat[4][4];
 typedef float TGLVec3[3];
 typedef float TGLVec4[4];
 typedef TGLVec3 TGLTriangle[3];
+typedef void TGLVertexShader(const TGLVec3, TGLVec4, const void *);
 
+#ifndef TERMGL_MINIMAL
 /**
- * Struct which stores 3D trasnformation matrices. Operated on via helper functions (tgl3d_transform_...)
+ * Various functions to edit transformation matrices
  */
-typedef struct TGLTransform {
-	TGLMat rotate;
-	TGLMat scale;
-	TGLMat translate;
-	TGLMat result;
-} TGLTransform;
+void tgl_rotate(TGLMat rotate, float x, float y, float z);
+void tgl_scale(TGLMat scale, float x, float y, float z);
+void tgl_translate(TGLMat translate, float x, float y, float z);
 
 typedef struct TGLVertexShaderSimple {
 	TGLMat mat;
 } TGLVertexShaderSimple;
 
-typedef void TGLVertexShader(const TGLVec3, TGLVec4, const void *);
-
 void tgl3d_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *data);
+
+/**
+ * Sets the camera's perspective projection matrix
+ * @param fov: field of view angle in radians
+ * @param near_val: distance to near clipping plane
+ * @param far_val: distance to far clipping plane
+ */
+void tgl_camera(TGLMat camera, int width, int height, float fov, float near_val, float far_val);
 
 float tgl_sqr(const float val);
 float tgl_mag3(const float vec[3]);
@@ -248,13 +224,7 @@ void tgl_norm3(float vec[3]);
 void tgl_mulmatvec(const TGLMat mat, const TGLVec3 vec, TGLVec4 res);
 void tgl_mulmat(const TGLMat mat1, const TGLMat mat2, TGLMat res);
 
-/**
- * Sets the camera's perspective projection matrix
- * @param fov: field of view angle in radians
- * @param near_val: distance to near clipping plane
- * @param far_val: distance to far clipping plane
- */
-void tgl3d_camera(TGLMat camera, int width, int height, float fov, float near_val, float far_val);
+#endif /* ~TERMGL_MINIMAL */
 
 /**
  * Sets which face should be culled. Requires tgl_enable(TGL_CULL_FACE) to be run before faces will be culled
@@ -262,26 +232,14 @@ void tgl3d_camera(TGLMat camera, int width, int height, float fov, float near_va
  *   TGL_BACK OR TGL_FRONT - face to cull
  *   TGL_CW OR TGL_CCW - winding order of triangles
  */
-void tgl3d_cull_face(TGL *tgl, uint8_t settings);
+void tgl_cull_face(TGL *tgl, uint8_t settings);
 
 /**
  * Renders triangle onto framebuffer
  * @param intermediate_shader: (allow NULL) pointer to a shader function which is executed after vertex shader (projection and clipping) and before fragment shader (drawing onto framebuffer). Parameters are a projected triangle from vertex shader, and optional data. See termgl_test.c for example
  * @param data: (allow NULL) data which is passed to intermediate_shader
  */
-void tgl3d_triangle(TGL *const tgl, const TGLTriangle in, const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLInterp *frag_shader, const void *const frag_data);
-
-/**
- * Various functions to edit TGLTransform matrices
- */
-void tgl3d_transform_rotate(TGLTransform *transform, float x, float y, float z);
-void tgl3d_transform_scale(TGLTransform *transform, float x, float y, float z);
-void tgl3d_transform_translate(TGLTransform *transform, float x, float y, float z);
-
-/**
- * Updates TGLTransform after any contained matrices were changed by above functions
- */
-void tgl3d_transform_update(TGLTransform *transform);
+void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLPixelShader *frag_shader, const void *const frag_data);
 
 #endif /* TERMGL3D */
 
@@ -295,7 +253,7 @@ void tgl3d_transform_update(TGLTransform *transform);
 #elif defined(TGL_OS_WINDOWS)
 #define TGL_SSIZE_T SSIZE_T
 #else
-#error "TermGLUtil is only supported on UNIX and Windows."
+#error "TermGLUtil is only supported on *NIX and Windows."
 #endif
 
 /**
