@@ -222,7 +222,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 	TGLTransform camera_t;
 	tgl3d_transform_scale(&camera_t, 1.0f, 1.0f, 1.0f);
 	tgl3d_transform_rotate(&camera_t, 2.1f, 0.f, 0.f);
-	tgl3d_transform_translate(&camera_t, 0.f, 0.f, 2.f);
+	tgl3d_transform_translate(&camera_t, 0.f, 0.f, 1.f);
 	tgl3d_transform_update(&camera_t);
 
 	// Create transformation matrices for object
