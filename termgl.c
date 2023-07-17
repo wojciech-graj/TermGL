@@ -119,6 +119,14 @@ void tgl_pixel_shader_simple(const uint8_t u, const uint8_t v, uint16_t *const c
 	(void)v;
 }
 
+void tgl_pixel_shader_texture(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data)
+{
+	const TGLPixelShaderTexture *const shader = data;
+	unsigned idx = u * shader->width / 256 + shader->width * (v * shader->height / 256);
+	*color = shader->colors[idx];
+	*c = shader->chars[idx];
+}
+
 char tgl_grad_char(const TGLGradient *const grad, const uint8_t intensity)
 {
 	return grad->grad[grad->length * intensity / 256u];
@@ -547,7 +555,7 @@ void tgl_triangle_fill(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPi
 		uint8_t vu1 = ((y - v0.y) * v2.u + (v2.y - y) * v0.u) / (v2.y - v0.y);
 		uint8_t vv1 = ((y - v0.y) * v2.v + (v2.y - y) * v0.v) / (v2.y - v0.y);
 		float vz0 = ((y - v0.y) * v1.z + (v1.y - y) * v0.z) / (v1.y - v0.y);
-		float vz1 = ((y - v0.y) * v2.z + (v2.y - y) * v0.z) / (v1.y - v0.y);
+		float vz1 = ((y - v0.y) * v2.z + (v2.y - y) * v0.z) / (v2.y - v0.y);
 
 		if (t0x < t1x)
 			itgl_horiz_line(tgl, minx, vz0, vu0, vv0, maxx, vz1, vu1, vv1, y, t, data);
@@ -817,13 +825,6 @@ void tgl_sub3s(const float vec1[3], const float subtrahend, float res[3])
 	res[2] = vec1[2] - subtrahend;
 }
 
-void tgl_mul3s(const float vec[3], const float mul, float res[3])
-{
-	res[0] = vec[0] * mul;
-	res[1] = vec[1] * mul;
-	res[2] = vec[2] * mul;
-}
-
 void tgl_add3v(const float vec1[3], const float vec2[3], float res[3])
 {
 	res[0] = vec1[0] + vec2[0];
@@ -914,6 +915,13 @@ void tgl_translate(TGLMat translate, const float x, const float y, const float z
 }
 #endif /* ~TERMGL_MINIMAL */
 
+void tgl_mul3s(const float vec[3], const float mul, float res[3])
+{
+	res[0] = vec[0] * mul;
+	res[1] = vec[1] * mul;
+	res[2] = vec[2] * mul;
+}
+
 void itgl_clip_line(const float dot_i, const TGLVec4 vec_i, const uint8_t uv_i[2], const float dot_o, const TGLVec4 vec_o, const uint8_t uv_o[2], TGLVec4 vec_out, uint8_t uv_out[2])
 {
 	float d = dot_i / (dot_i - dot_o);
@@ -1000,9 +1008,12 @@ void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const
 
 	/* Backface culling */
 	if (tgl->settings & TGL_CULL_FACE) {
-		TGLVec3 ab, ac, cp;
-		tgl_sub3v(verts[1], verts[0], ab);
-		tgl_sub3v(verts[2], verts[0], ac);
+		TGLVec3 v0s, v1s, v2s, ab, ac, cp;
+		tgl_mul3s(verts[0], 1.f / verts[0][3], v0s);
+		tgl_mul3s(verts[1], 1.f / verts[1][3], v1s);
+		tgl_mul3s(verts[2], 1.f / verts[2][3], v2s);
+		tgl_sub3v(v1s, v0s, ab);
+		tgl_sub3v(v2s, v0s, ac);
 		tgl_cross(ab, ac, cp);
 		if (XOR(tgl->settings & TGL_CULL_BIT, signbit(cp[2])))
 			return;

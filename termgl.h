@@ -101,6 +101,13 @@ typedef struct TGLPixelShaderSimple {
 	const TGLGradient *grad;
 } TGLPixelShaderSimple;
 
+typedef struct TGLPixelShaderTexture {
+	uint8_t width;
+	uint8_t height;
+	char *chars;
+	uint16_t *colors;
+} TGLPixelShaderTexture;
+
 extern const TGLGradient gradient_full;
 extern const TGLGradient gradient_min;
 
@@ -109,6 +116,12 @@ extern const TGLGradient gradient_min;
  * @param data (TGLPixelShaderSimple *)
  */
 void tgl_pixel_shader_simple(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
+
+/**
+ * Pixel shader that... TODO
+ * @param data (TGLPixelShaderTexture *)
+ */
+void tgl_pixel_shader_texture(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
 
 /**
  * Gets a gradient's character corresponding to an intensity (i.e. u or v value)
@@ -230,7 +243,6 @@ float tgl_dot43(const float vec1[4], const float vec2[3]);
 
 void tgl_add3s(const float vec1[3], const float summand, float res[3]);
 void tgl_sub3s(const float vec1[3], const float subtrahend, float res[3]);
-void tgl_mul3s(const float vec[3], const float mul, float res[3]);
 
 void tgl_add3v(const float vec1[3], const float vec2[3], float res[3]);
 void tgl_sub3v(const float vec1[3], const float vec2[3], float res[3]);
@@ -245,6 +257,8 @@ void tgl_mulmatvec(const TGLMat mat, const TGLVec3 vec, TGLVec4 res);
 void tgl_mulmat(const TGLMat mat1, const TGLMat mat2, TGLMat res);
 
 #endif /* ~TERMGL_MINIMAL */
+
+void tgl_mul3s(const float vec[3], const float mul, float res[3]);
 
 /**
  * Sets which face should be culled. Requires tgl_enable(TGL_CULL_FACE) for faces to be culled
