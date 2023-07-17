@@ -69,6 +69,14 @@ typedef struct TGL TGL;
 
 typedef void TGLInterp(uint8_t, uint8_t, uint16_t *, char *, const void *);
 
+typedef struct TGLVert {
+	int x;
+	int y;
+	float z;
+	uint8_t u;
+	uint8_t v;
+} TGLVert;
+
 typedef struct TGLGradient {
 	unsigned length;
 	const char *grad;
@@ -154,9 +162,9 @@ void tgl_disable(TGL *tgl, uint8_t settings);
 void tgl_putchar(TGL *tgl, int x, int y, char c, uint16_t color);
 void tgl_puts(TGL *tgl, int x, int y, const char *str, uint16_t color);
 void tgl_point(TGL *tgl, int x, int y, float z, char c, uint16_t color);
-void tgl_line(TGL *tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, uint8_t v1, TGLInterp *t, const void *data);
-void tgl_triangle(TGL *tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, uint8_t v1, int x2, int y2, float z2, uint8_t u2, uint8_t v2, TGLInterp *t, const void *data);
-void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, uint8_t v1, int x2, int y2, float z2, uint8_t u2, uint8_t v2, TGLInterp *t, const void *data);
+void tgl_line(TGL *tgl, TGLVert v0, TGLVert v1, TGLInterp *t, const void *data);
+void tgl_triangle(TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLInterp *t, const void *data);
+void tgl_triangle_fill(TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLInterp *t, const void *data);
 
 #ifdef TERMGL3D
 

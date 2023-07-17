@@ -326,20 +326,16 @@ void tgl_point(TGL *const tgl, int x, int y, const float z, const char c, const 
 }
 
 /* Bresenham's line algorithm */
-void tgl_line(TGL *const tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, uint8_t v1, TGLInterp *const t, const void *const data)
+void tgl_line(TGL *const tgl, TGLVert v0, TGLVert v1, TGLInterp *const t, const void *const data)
 {
-	itgl_clip(tgl, &x0, &y0);
-	itgl_clip(tgl, &x1, &y1);
-	if (abs(y1 - y0) < abs(x1 - x0)) {
-		if (x0 > x1) {
-			SWAP(x1, x0);
-			SWAP(y1, y0);
-			SWAP(z1, z0);
-			SWAP(u1, u0);
+	itgl_clip(tgl, &v0.x, &v0.y);
+	itgl_clip(tgl, &v1.x, &v1.y);
+	if (abs(v1.y - v0.y) < abs(v1.x - v0.x)) {
+		if (v0.x > v1.x) {
 			SWAP(v1, v0);
 		}
-		int dx = x1 - x0;
-		int dy = y1 - y0;
+		int dx = v1.x - v0.x;
+		int dy = v1.y - v0.y;
 		int yi;
 		if (dy > 0) {
 			yi = 1;
@@ -348,14 +344,14 @@ void tgl_line(TGL *const tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, 
 			dy *= -1;
 		}
 		int d = (dy + dy) - dx;
-		int y = y0;
+		int y = v0.y;
 		int x;
-		for (x = x0; x <= x1; x++) {
+		for (x = v0.x; x <= v1.x; x++) {
 			uint16_t color;
 			char c;
-			t(((x - x0) * u1 + (x1 - x) * u0) / dx, ((x - x0) * v1 + (x1 - x) * v0) / dx, &color, &c, data);
+			t(((x - v0.x) * v1.u + (v1.x - x) * v0.u) / dx, ((x - v0.x) * v1.v + (v1.x - x) * v0.v) / dx, &color, &c, data);
 			SET_PIXEL(tgl, x, y,
-				((x - x0) * z1 + (x1 - x) * z0) / dx,
+				((x - v0.x) * v1.z + (v0.x - x) * v1.z) / dx,
 				c, color);
 			if (d > 0) {
 				y += yi;
@@ -365,15 +361,11 @@ void tgl_line(TGL *const tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, 
 			}
 		}
 	} else {
-		if (y0 > y1) {
-			SWAP(x1, x0);
-			SWAP(y1, y0);
-			SWAP(z1, z0);
-			SWAP(u1, u0);
+		if (v0.y > v1.y) {
 			SWAP(v1, v0);
 		}
-		int dx = x1 - x0;
-		int dy = y1 - y0;
+		int dx = v1.x - v0.x;
+		int dy = v1.y - v0.y;
 		int xi;
 		if (dx > 0) {
 			xi = 1;
@@ -382,14 +374,14 @@ void tgl_line(TGL *const tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, 
 			dx *= -1;
 		}
 		int d = (dx + dx) - dy;
-		int x = x0;
+		int x = v0.x;
 		int y;
-		for (y = y0; y <= y1; y++) {
+		for (y = v0.y; y <= v1.y; y++) {
 			uint16_t color;
 			char c;
-			t(((y - y0) * u1 + (y1 - y) * u0) / dy, ((y - y0) * v1 + (y1 - y) * v0) / dy, &color, &c, data);
+			t(((y - v0.y) * v1.u + (v1.y - y) * v0.u) / dy, ((y - v0.y) * v1.v + (v1.y - y) * v0.v) / dy, &color, &c, data);
 			SET_PIXEL(tgl, x, y,
-				((y - y0) * z1 + (y1 - y) * z0) / dx,
+				((y - v0.y) * v1.z + (v1.y - y) * v0.z) / dx,
 				c, color);
 			if (d > 0) {
 				x += xi;
@@ -405,7 +397,7 @@ void tgl_interp_lin_1d(const uint8_t u, const uint8_t v, uint16_t *const color, 
 {
 	const TGLInterpLin1D *const interp = data;
 	*color = interp->color;
-	*c = tgl_grad_char(interp->grad, (interp->u0 * u + interp->u1 * (255 - u)) / 256);
+	*c = tgl_grad_char(interp->grad, interp->u0 + (interp->u1 - interp->u0) * u / 256);
 	(void)v;
 }
 
@@ -416,11 +408,11 @@ void tgl_interp_lin_2d(const uint8_t u, const uint8_t v, uint16_t *const color, 
 	*c = tgl_grad_char(interp->grad, interp->uv0 + ((interp->u1 - interp->uv0) * u + (interp->v1 - interp->uv0) * v) / 256);
 }
 
-void tgl_triangle(TGL *const tgl, const int x0, const int y0, const float z0, const uint8_t u0, const uint8_t v0, const int x1, const int y1, const float z1, const uint8_t u1, const uint8_t v1, const int x2, const int y2, const float z2, const uint8_t u2, const uint8_t v2, TGLInterp *const t, const void *data)
+void tgl_triangle(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLInterp *const t, const void *data)
 {
-	tgl_line(tgl, x0, y0, z0, u0, v0, x1, y1, z1, u1, v1, t, data);
-	tgl_line(tgl, x0, y0, z0, u0, v0, x2, y2, z2, u2, v2, t, data);
-	tgl_line(tgl, x1, y1, z1, u1, v1, x2, y2, z2, u2, v2, t, data);
+	tgl_line(tgl, v0, v1, t, data);
+	tgl_line(tgl, v0, v2, t, data);
+	tgl_line(tgl, v1, v2, t, data);
 }
 
 void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t u0, const uint8_t v0, const int x1, const float z1, const uint8_t u1, const uint8_t v1, const int y, TGLInterp *t, const void *const data)
@@ -447,37 +439,25 @@ void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t
 /* Solution based on Bresenham's line algorithm
  * adapted from: https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h
  **/
-void tgl_triangle_fill(TGL *const tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, uint8_t v1, int x2, int y2, float z2, uint8_t u2, uint8_t v2, TGLInterp *const t, const void *data)
+void tgl_triangle_fill(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLInterp *const t, const void *data)
 {
-	itgl_clip(tgl, &x0, &y0);
-	itgl_clip(tgl, &x1, &y1);
-	itgl_clip(tgl, &x2, &y2);
-	if (y1 < y0) {
-		SWAP(x1, x0);
-		SWAP(y1, y0);
-		SWAP(z1, z0);
-		SWAP(u1, u0);
+	itgl_clip(tgl, &v0.x, &v0.y);
+	itgl_clip(tgl, &v1.x, &v1.y);
+	itgl_clip(tgl, &v2.x, &v2.y);
+	if (v1.y < v0.y) {
 		SWAP(v1, v0);
 	}
-	if (y2 < y0) {
-		SWAP(x2, x0);
-		SWAP(y2, y0);
-		SWAP(z2, z0);
-		SWAP(u2, u0);
+	if (v2.y < v0.y) {
 		SWAP(v2, v0);
 	}
-	if (y2 < y1) {
-		SWAP(x1, x2);
-		SWAP(y1, y2);
-		SWAP(z1, z2);
-		SWAP(u1, u2);
+	if (v2.y < v1.y) {
 		SWAP(v1, v2);
 	}
 
 	int t0xp, t1xp, minx, maxx, t0x, t1x;
-	t0x = t1x = x0;
-	int y = y0;
-	int dx0 = x1 - x0;
+	t0x = t1x = v0.x;
+	int y = v0.y;
+	int dx0 = v1.x - v0.x;
 	int signx0, signx1;
 	bool changed0, changed1;
 	changed0 = changed1 = false;
@@ -487,15 +467,15 @@ void tgl_triangle_fill(TGL *const tgl, int x0, int y0, float z0, uint8_t u0, uin
 	} else {
 		signx0 = 1;
 	}
-	int dy0 = y1 - y0;
-	int dx1 = x2 - x0;
+	int dy0 = v1.y - v0.y;
+	int dx1 = v2.x - v0.x;
 	if (dx1 < 0) {
 		dx1 = -dx1;
 		signx1 = -1;
 	} else {
 		signx1 = 1;
 	}
-	int dy1 = y2 - y0;
+	int dy1 = v2.y - v0.y;
 
 	if (dy0 > dx0) {
 		SWAP(dx0, dy0);
@@ -507,7 +487,7 @@ void tgl_triangle_fill(TGL *const tgl, int x0, int y0, float z0, uint8_t u0, uin
 	}
 	int e1 = dx1 >> 1;
 	int e0;
-	if (y0 == y1)
+	if (v0.y == v1.y)
 		goto LBL_NEXT;
 	e0 = dx0 >> 1;
 
@@ -562,12 +542,12 @@ void tgl_triangle_fill(TGL *const tgl, int x0, int y0, float z0, uint8_t u0, uin
 		if (maxx < t1x)
 			maxx = t1x;
 
-		uint8_t vu0 = ((y - y0) * u1 + (y1 - y) * u0) / (y1 - y0);
-		uint8_t vv0 = ((y - y0) * v1 + (y1 - y) * v0) / (y1 - y0);
-		uint8_t vu1 = ((y - y0) * u2 + (y2 - y) * u0) / (y2 - y0);
-		uint8_t vv1 = ((y - y0) * v2 + (y2 - y) * v0) / (y2 - y0);
-		float vz0 = ((y - y0) * z1 + (y1 - y) * z0) / (y1 - y0);
-		float vz1 = ((y - y0) * z1 + (y1 - y) * z0) / (y1 - y0);
+		uint8_t vu0 = ((y - v0.y) * v1.u + (v1.y - y) * v0.u) / (v1.y - v0.y);
+		uint8_t vv0 = ((y - v0.y) * v1.v + (v1.y - y) * v0.v) / (v1.y - v0.y);
+		uint8_t vu1 = ((y - v0.y) * v2.u + (v2.y - y) * v0.u) / (v2.y - v0.y);
+		uint8_t vv1 = ((y - v0.y) * v2.v + (v2.y - y) * v0.v) / (v2.y - v0.y);
+		float vz0 = ((y - v0.y) * v1.z + (v1.y - y) * v0.z) / (v1.y - v0.y);
+		float vz1 = ((y - v0.y) * v2.z + (v2.y - y) * v0.z) / (v1.y - v0.y);
 
 		if (t0x < t1x)
 			itgl_horiz_line(tgl, minx, vz0, vu0, vv0, maxx, vz1, vu1, vv1, y, t, data);
@@ -581,20 +561,20 @@ void tgl_triangle_fill(TGL *const tgl, int x0, int y0, float z0, uint8_t u0, uin
 			t1x += signx1;
 		t1x += t1xp;
 		y += 1;
-		if (y == y1)
+		if (y == v1.y)
 			break;
 	}
 LBL_NEXT:
 	/* Second half */
-	dx0 = x2 - x1;
+	dx0 = v2.x - v1.x;
 	if (dx0 < 0) {
 		dx0 *= -1;
 		signx0 = -1;
 	} else {
 		signx0 = 1;
 	}
-	dy0 = y2 - y1;
-	t0x = x1;
+	dy0 = v2.y - v1.y;
+	t0x = v1.x;
 	if (dy0 > dx0) {
 		SWAP(dy0, dx0);
 		changed0 = true;
@@ -631,7 +611,7 @@ LBL_NEXT:
 				i++;
 		}
 	LBL_NEXT3:
-		while (t1x != x2) {
+		while (t1x != v2.x) {
 			e1 += dy1;
 			while (e1 >= dx1) {
 				e1 -= dx1;
@@ -655,20 +635,20 @@ LBL_NEXT:
 		if (maxx < t1x)
 			maxx = t1x;
 
-		if (y1 != y2) {
-			uint8_t vu0 = ((y - y0) * u2 + (y2 - y) * u0) / (y2 - y0);
-			uint8_t vv0 = ((y - y0) * v2 + (y2 - y) * v0) / (y2 - y0);
-			uint8_t vu1 = ((y - y1) * u2 + (y2 - y) * u1) / (y2 - y1);
-			uint8_t vv1 = ((y - y1) * v2 + (y2 - y) * v1) / (y2 - y1);
-			float vz0 = ((y - y0) * z2 + (y2 - y) * z0) / (y2 - y0);
-			float vz1 = ((y - y1) * z2 + (y2 - y) * z1) / (y2 - y1);
+		if (v1.y != v2.y) {
+			uint8_t vu0 = ((y - v0.y) * v2.u + (v2.y - y) * v0.u) / (v2.y - v0.y);
+			uint8_t vv0 = ((y - v0.y) * v2.v + (v2.y - y) * v0.v) / (v2.y - v0.y);
+			uint8_t vu1 = ((y - v1.y) * v2.u + (v2.y - y) * v1.u) / (v2.y - v1.y);
+			uint8_t vv1 = ((y - v1.y) * v2.v + (v2.y - y) * v1.v) / (v2.y - v1.y);
+			float vz0 = ((y - v0.y) * v2.z + (v2.y - y) * v0.z) / (v2.y - v0.y);
+			float vz1 = ((y - v1.y) * v2.z + (v2.y - y) * v1.z) / (v2.y - v1.y);
 
 			if (t1x < t0x)
 				itgl_horiz_line(tgl, minx, vz0, vu0, vv0, maxx, vz1, vu1, vv1, y, t, data);
 			else
 				itgl_horiz_line(tgl, minx, vz1, vu1, vv1, maxx, vz0, vu0, vv0, y, t, data);
 		} else {
-			itgl_horiz_line(tgl, minx, z1, u1, v1, maxx, z2, u2, v2, y, t, data);
+			itgl_horiz_line(tgl, minx, v1.z, v1.u, v1.v, maxx, v2.z, v2.u, v2.v, y, t, data);
 		}
 
 		if (!changed0)
@@ -678,7 +658,7 @@ LBL_NEXT:
 			t1x += signx1;
 		t1x += t1xp;
 		y += 1;
-		if (y > y2)
+		if (y > v2.y)
 			return;
 	};
 }
@@ -1040,40 +1020,52 @@ void tgl3d_triangle(TGL *const tgl, const TGLTriangle in, const bool fill, TGLVe
 
 		if (fill)
 			tgl_triangle_fill(tgl,
-				MAP_COORD(half_width, v[0][0]),
-				MAP_COORD(half_height, v[0][1]),
-				v[0][2],
-				trig_buffer[i + buffer_offset].uv[0][0],
-				trig_buffer[i + buffer_offset].uv[0][1],
-				MAP_COORD(half_width, v[1][0]),
-				MAP_COORD(half_height, v[1][1]),
-				v[1][2],
-				trig_buffer[i + buffer_offset].uv[1][0],
-				trig_buffer[i + buffer_offset].uv[1][1],
-				MAP_COORD(half_width, v[2][0]),
-				MAP_COORD(half_height, v[2][1]),
-				v[2][2],
-				trig_buffer[i + buffer_offset].uv[2][0],
-				trig_buffer[i + buffer_offset].uv[2][1],
+				(TGLVert){
+					.x = MAP_COORD(half_width, v[0][0]),
+					.y = MAP_COORD(half_height, v[0][1]),
+					.z = v[0][2],
+					.u = trig_buffer[i + buffer_offset].uv[0][0],
+					.v = trig_buffer[i + buffer_offset].uv[0][1],
+				},
+				(TGLVert){
+					.x = MAP_COORD(half_width, v[1][0]),
+					.y = MAP_COORD(half_height, v[1][1]),
+					.z = v[1][2],
+					.u = trig_buffer[i + buffer_offset].uv[1][0],
+					.v = trig_buffer[i + buffer_offset].uv[1][1],
+				},
+				(TGLVert){
+					.x = MAP_COORD(half_width, v[2][0]),
+					.y = MAP_COORD(half_height, v[2][1]),
+					.z = v[2][2],
+					.u = trig_buffer[i + buffer_offset].uv[2][0],
+					.v = trig_buffer[i + buffer_offset].uv[2][1],
+				},
 				frag_shader,
 				frag_data);
 		else
 			tgl_triangle(tgl,
-				MAP_COORD(half_width, v[0][0]),
-				MAP_COORD(half_height, v[0][1]),
-				v[0][2],
-				trig_buffer[i + buffer_offset].uv[0][0],
-				trig_buffer[i + buffer_offset].uv[0][1],
-				MAP_COORD(half_width, v[1][0]),
-				MAP_COORD(half_height, v[1][1]),
-				v[1][2],
-				trig_buffer[i + buffer_offset].uv[1][0],
-				trig_buffer[i + buffer_offset].uv[1][1],
-				MAP_COORD(half_width, v[2][0]),
-				MAP_COORD(half_height, v[2][1]),
-				v[2][2],
-				trig_buffer[i + buffer_offset].uv[2][0],
-				trig_buffer[i + buffer_offset].uv[2][1],
+				(TGLVert){
+					.x = MAP_COORD(half_width, v[0][0]),
+					.y = MAP_COORD(half_height, v[0][1]),
+					.z = v[0][2],
+					.u = trig_buffer[i + buffer_offset].uv[0][0],
+					.v = trig_buffer[i + buffer_offset].uv[0][1],
+				},
+				(TGLVert){
+					.x = MAP_COORD(half_width, v[1][0]),
+					.y = MAP_COORD(half_height, v[1][1]),
+					.z = v[1][2],
+					.u = trig_buffer[i + buffer_offset].uv[1][0],
+					.v = trig_buffer[i + buffer_offset].uv[1][1],
+				},
+				(TGLVert){
+					.x = MAP_COORD(half_width, v[2][0]),
+					.y = MAP_COORD(half_height, v[2][1]),
+					.z = v[2][2],
+					.u = trig_buffer[i + buffer_offset].uv[2][0],
+					.v = trig_buffer[i + buffer_offset].uv[2][1],
+				},
 				frag_shader,
 				frag_data);
 	}
