@@ -155,8 +155,8 @@ void tgl_putchar(TGL *tgl, int x, int y, char c, uint16_t color);
 void tgl_puts(TGL *tgl, int x, int y, const char *str, uint16_t color);
 void tgl_point(TGL *tgl, int x, int y, float z, char c, uint16_t color);
 void tgl_line(TGL *tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, uint8_t v1, TGLInterp *t, const void *data);
-void tgl_triangle(TGL *tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, int x2, int y2, float z2, uint8_t v1, TGLInterp *t, const void *data);
-void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, int x2, int y2, float z2, uint8_t v1, TGLInterp *t, const void *data);
+void tgl_triangle(TGL *tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, uint8_t v1, int x2, int y2, float z2, uint8_t u2, uint8_t v2, TGLInterp *t, const void *data);
+void tgl_triangle_fill(TGL *tgl, int x0, int y0, float z0, uint8_t u0, uint8_t v0, int x1, int y1, float z1, uint8_t u1, uint8_t v1, int x2, int y2, float z2, uint8_t u2, uint8_t v2, TGLInterp *t, const void *data);
 
 #ifdef TERMGL3D
 
