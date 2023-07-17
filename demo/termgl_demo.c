@@ -45,7 +45,9 @@ Select a Demo:\n\
 4. Mandelbrot\n\
     Renders an infinitely zooming-in Mandelbrot set.\n\
 5. Realtime Keyboard\n\
-    Displays keyboard input in realtime.\
+    Displays keyboard input in realtime.\n\
+6. Textured Cube\n\
+    Renders a texture-mapped cube.\
 ";
 
 static const uint16_t fg_colors[] = {
@@ -78,6 +80,7 @@ static void demo_teapot(const unsigned res_x, const unsigned res_y, const unsign
 static void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_star(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
+static void demo_texture(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 
 void teapot_pixel_shader(const uint8_t u, const uint8_t v, uint16_t *color, char *c, const void *const data)
 {
@@ -421,6 +424,341 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 	getchar();
 }
 
+static void demo_texture(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
+{
+	TGL *const tgl = tgl_init(res_x, res_y);
+	assert(tgl);
+	tgl_cull_face(tgl, TGL_BACK | TGL_CCW);
+	assert(!tgl_enable(tgl, TGL_DOUBLE_CHARS | TGL_CULL_FACE | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER | TGL_PROGRESSIVE));
+
+	// Triangle vertices for cube faces
+	const TGLTriangle trigs[] = {
+		{
+			{
+				0,
+				0,
+				0,
+			},
+			{
+				0,
+				1,
+				0,
+			},
+			{
+				1,
+				0,
+				0,
+			},
+		},
+		{
+			{
+				0,
+				1,
+				0,
+			},
+			{
+				1,
+				1,
+				0,
+			},
+			{
+				1,
+				0,
+				0,
+			},
+		},
+		{
+			{
+				0,
+				0,
+				0,
+			},
+			{
+				1,
+				0,
+				0,
+			},
+			{
+				0,
+				0,
+				1,
+			},
+		},
+		{
+			{
+				1,
+				0,
+				0,
+			},
+			{
+				1,
+				0,
+				1,
+			},
+			{
+				0,
+				0,
+				1,
+			},
+		},
+		{
+			{
+				0,
+				0,
+				0,
+			},
+			{
+				0,
+				0,
+				1,
+			},
+			{
+				0,
+				1,
+				0,
+			},
+		},
+		{
+
+			{
+				0,
+				0,
+				1,
+			},
+			{
+				0,
+				1,
+				1,
+			},
+			{
+				0,
+				1,
+				0,
+			},
+		},
+		{
+			{
+				0,
+				0,
+				1,
+			},
+			{
+				1,
+				0,
+				1,
+			},
+			{
+				0,
+				1,
+				1,
+			},
+		},
+		{
+			{
+				1,
+				0,
+				1,
+			},
+			{
+				1,
+				1,
+				1,
+			},
+			{
+				0,
+				1,
+				1,
+			},
+		},
+		{
+			{
+				0,
+				1,
+				0,
+			},
+			{
+				0,
+				1,
+				1,
+			},
+			{
+				1,
+				1,
+				0,
+			},
+		},
+		{
+			{
+				0,
+				1,
+				1,
+			},
+			{
+				1,
+				1,
+				1,
+			},
+			{
+				1,
+				1,
+				0,
+			},
+		},
+		{
+			{
+				1,
+				0,
+				0,
+			},
+			{
+				1,
+				1,
+				0,
+			},
+			{
+				1,
+				0,
+				1,
+			},
+		},
+		{
+			{
+				1,
+				1,
+				0,
+			},
+			{
+				1,
+				1,
+				1,
+			},
+			{
+				1,
+				0,
+				1,
+			},
+
+		},
+	};
+
+	const uint8_t uvs[][3][2] = {
+		{
+			{
+				0,
+				0,
+			},
+			{
+				0,
+				255,
+			},
+			{
+				255,
+				0,
+			},
+		},
+		{
+			{
+				0,
+				255,
+			},
+			{
+				255,
+				255,
+			},
+			{
+				255,
+				0,
+			},
+		},
+	};
+
+	// Create transformation matrices
+	TGLVertexShaderSimple vertex_shader_data;
+	TGLMat rotate, translate, translate2, transform;
+	TGLMat camera;
+	tgl_camera(camera, res_x, res_y, 1.57f, .1f, 10.f);
+	tgl_translate(translate, -.5f, -.5f, -.5f);
+	tgl_translate(translate2, 0.f, 0.f, 1.3f);
+
+	// Create texture
+	const TGLPixelShaderTexture tex = {
+		.width = 6,
+		.height = 6,
+		.chars = "\
+######\
+# 1 2#\
+#3 4 #\
+# 5 6#\
+#7 8 #\
+######",
+		.colors = (uint16_t[]){
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_RED | TGL_UNDERLINE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_GREEN,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_YELLOW,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_BLUE | TGL_UNDERLINE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_PURPLE | TGL_UNDERLINE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_CYAN,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_GREEN,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_RED | TGL_UNDERLINE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+			TGL_BOLD | TGL_WHITE,
+		},
+	};
+
+	const float dn = 0.02f;
+	float n = 0;
+
+	while (1) {
+		// Calculate final transformation matrix
+		TGLMat temp;
+		tgl_rotate(rotate, n / 3.f, n, 0.f);
+		tgl_mulmat((const TGLVec4 *)translate2, (const TGLVec4 *)rotate, temp);
+		tgl_mulmat((const TGLVec4 *)temp, (const TGLVec4 *)translate, transform);
+		tgl_mulmat((const TGLVec4 *)camera, (const TGLVec4 *)transform, vertex_shader_data.mat);
+
+		unsigned i;
+		for (i = 0; i < 12; i++) {
+			// Draw to framebuffer
+			tgl_triangle_3d(tgl, trigs[i], uvs[i % 2], true, &tgl3d_vertex_shader_simple, &vertex_shader_data, &tgl_pixel_shader_texture, &tex);
+		}
+
+		assert(!tgl_flush(tgl));
+		tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER);
+
+		n += dn;
+
+		sleep_ms(frametime_ms);
+	}
+
+	tgl_delete(tgl);
+}
+
 int main(int argc, char **argv)
 {
 	(void)argc;
@@ -452,6 +790,9 @@ int main(int argc, char **argv)
 		break;
 	case 5u:
 		demo_keyboard(80, 5, 200);
+		break;
+	case 6u:
+		demo_texture(40, 40, 33);
 		break;
 	default:
 		puts("Invalid Input.\n");
