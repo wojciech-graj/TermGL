@@ -236,6 +236,21 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 	const float dn = 0.02f;
 	float n = 0;
 
+	const uint8_t uv[3][2] = {
+		{
+			0,
+			0,
+		},
+		{
+			255,
+			0,
+		},
+		{
+			0,
+			255,
+		},
+	};
+
 	while (1) {
 		//Edit transformation to move objects
 		tgl_rotate(obj_rotate, 0.f, 0.f, n);
@@ -251,7 +266,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 			tgl_mulmat((const TGLVec4 *)camera, (const TGLVec4 *)to_view, vertex_shader_data.mat);
 
 			//Draw to framebuffer
-			tgl_triangle_3d(tgl, (const TGLVec3 *)trigs[i], true, &tgl3d_vertex_shader_simple, &vertex_shader_data, &teapot_shader, &trigs[i]);
+			tgl_triangle_3d(tgl, (const TGLVec3 *)trigs[i], uv, true, &tgl3d_vertex_shader_simple, &vertex_shader_data, &teapot_shader, &trigs[i]);
 		}
 
 		assert(!tgl_flush(tgl));

@@ -65,20 +65,32 @@ enum {
 #endif
 };
 
+/**
+ * Rendering context that is passed to most functions
+ */
 typedef struct TGL TGL;
 
-typedef void TGLPixelShader(uint8_t, uint8_t, uint16_t *, char *, const void *);
+/**
+ * Pixel shader that is called for each pixel in draw functions
+ */
+typedef void TGLPixelShader(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
 
+/**
+ * Vertex data passed into 2D drawing functions
+ */
 typedef struct TGLVert {
 	int x;
 	int y;
-	float z;
-	uint8_t u;
-	uint8_t v;
+	float z; /**< depth */
+	uint8_t u; /**< u passed into TGLPixelShader */
+	uint8_t v; /**< v passed into TGLPixelShader */
 } TGLVert;
 
 #ifndef TERMGL_MINIMAL
 
+/**
+ * Gradient of characters from dark to bright
+ */
 typedef struct TGLGradient {
 	unsigned length;
 	const char *grad;
@@ -92,8 +104,15 @@ typedef struct TGLPixelShaderSimple {
 extern const TGLGradient gradient_full;
 extern const TGLGradient gradient_min;
 
+/**
+ * Pixel shader that selects the char from a TGLGradient and has fixed color
+ * @param data (TGLPixelShaderSimple *)
+ */
 void tgl_pixel_shader_simple(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
 
+/**
+ * Gets a gradient's character corresponding to an intensity (i.e. u or v value)
+ */
 char tgl_grad_char(const TGLGradient *grad, uint8_t intensity);
 
 #endif /* ~TERMGL_MINIMAL */
@@ -156,7 +175,7 @@ void tgl_puts(TGL *tgl, int x, int y, const char *str, uint16_t color);
 /**
  * Drawing functions
  */
-void tgl_point(TGL *tgl, int x, int y, float z, char c, uint16_t color);
+void tgl_point(TGL *tgl, TGLVert v0, TGLPixelShader *t, const void *data);
 void tgl_line(TGL *tgl, TGLVert v0, TGLVert v1, TGLPixelShader *t, const void *data);
 void tgl_triangle(TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *t, const void *data);
 void tgl_triangle_fill(TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *t, const void *data);
@@ -177,29 +196,30 @@ typedef float TGLMat[4][4];
 typedef float TGLVec3[3];
 typedef float TGLVec4[4];
 typedef TGLVec3 TGLTriangle[3];
-typedef void TGLVertexShader(const TGLVec3, TGLVec4, const void *);
+
+/**
+ * Vertex shader that should transform an input vertex into Clip Space
+ */
+typedef void TGLVertexShader(const TGLVec3 in, TGLVec4 out, const void *data);
 
 #ifndef TERMGL_MINIMAL
-/**
- * Various functions to edit transformation matrices
- */
-void tgl_rotate(TGLMat rotate, float x, float y, float z);
-void tgl_scale(TGLMat scale, float x, float y, float z);
-void tgl_translate(TGLMat translate, float x, float y, float z);
-
 typedef struct TGLVertexShaderSimple {
 	TGLMat mat;
 } TGLVertexShaderSimple;
 
+/**
+ * Vertex shader that outputs the input vertex multiplied by a matrix
+ * @param data (TGLVertexShaderSimple *)
+ */
 void tgl3d_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *data);
 
 /**
- * Sets the camera's perspective projection matrix
- * @param fov: field of view angle in radians
- * @param near_val: distance to near clipping plane
- * @param far_val: distance to far clipping plane
+ * Transformation matrix generation functions
  */
 void tgl_camera(TGLMat camera, int width, int height, float fov, float near_val, float far_val);
+void tgl_rotate(TGLMat rotate, float x, float y, float z);
+void tgl_scale(TGLMat scale, float x, float y, float z);
+void tgl_translate(TGLMat translate, float x, float y, float z);
 
 float tgl_sqr(const float val);
 float tgl_mag3(const float vec[3]);
@@ -227,7 +247,7 @@ void tgl_mulmat(const TGLMat mat1, const TGLMat mat2, TGLMat res);
 #endif /* ~TERMGL_MINIMAL */
 
 /**
- * Sets which face should be culled. Requires tgl_enable(TGL_CULL_FACE) to be run before faces will be culled
+ * Sets which face should be culled. Requires tgl_enable(TGL_CULL_FACE) for faces to be culled
  * @param settings: bitwise combination of:
  *   TGL_BACK OR TGL_FRONT - face to cull
  *   TGL_CW OR TGL_CCW - winding order of triangles
@@ -236,10 +256,8 @@ void tgl_cull_face(TGL *tgl, uint8_t settings);
 
 /**
  * Renders triangle onto framebuffer
- * @param intermediate_shader: (allow NULL) pointer to a shader function which is executed after vertex shader (projection and clipping) and before fragment shader (drawing onto framebuffer). Parameters are a projected triangle from vertex shader, and optional data. See termgl_test.c for example
- * @param data: (allow NULL) data which is passed to intermediate_shader
  */
-void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLPixelShader *frag_shader, const void *const frag_data);
+void tgl_triangle_3d(TGL *tgl, const TGLTriangle in, const uint8_t (*uv)[2], bool fill, TGLVertexShader *vert_shader, const void *vert_data, TGLPixelShader *frag_shader, const void *frag_data);
 
 #endif /* TERMGL3D */
 

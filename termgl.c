@@ -331,10 +331,13 @@ void tgl_puts(TGL *const tgl, const int x, int y, const char *str, const uint16_
 	}
 }
 
-void tgl_point(TGL *const tgl, int x, int y, const float z, const char c, const uint16_t color)
+void tgl_point(TGL *const tgl, TGLVert v0, TGLPixelShader *const t, const void *const data)
 {
-	itgl_clip(tgl, &x, &y);
-	SET_PIXEL(tgl, x, y, z, c, color);
+	itgl_clip(tgl, &v0.x, &v0.y);
+	char c;
+	uint16_t color;
+	t(v0.u, v0.v, &color, &c, data);
+	SET_PIXEL(tgl, v0.x, v0.y, v0.z, c, color);
 }
 
 /* Bresenham's line algorithm */
@@ -767,6 +770,7 @@ typedef struct TGLUVTriangle {
 
 static void itgl_clip_line(const float dot_i, const TGLVec4 vec_i, const uint8_t uv_i[2], const float dot_o, const TGLVec4 vec_o, const uint8_t uv_o[2], TGLVec4 vec_out, uint8_t uv_out[2]);
 static unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, TGLUVTriangle *in, TGLUVTriangle *out);
+static float itgl_clip_plane_dot(const TGLVec4 v, const enum ClipPlane plane);
 
 #ifndef TERMGL_MINIMAL
 __attribute__((const)) float tgl_sqr(const float val)
@@ -986,7 +990,7 @@ unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, TGLUVTriangle *in,
 	return 0;
 }
 
-void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLPixelShader *frag_shader, const void *const frag_data)
+void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const uv)[2], const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLPixelShader *frag_shader, const void *const frag_data)
 {
 	TGLVec4 verts[3];
 	unsigned i;
@@ -1004,12 +1008,7 @@ void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const bool fill, TGLV
 
 	TGLUVTriangle trig_buffer[127]; /* the size of this buffer assumes a pathological case which is probably impossible */
 	memcpy(&(trig_buffer[0].verts), verts, sizeof(TGLVec4[3]));
-	trig_buffer[0].uv[0][0] = 0;
-	trig_buffer[0].uv[0][1] = 0;
-	trig_buffer[0].uv[1][0] = 255;
-	trig_buffer[0].uv[1][1] = 0;
-	trig_buffer[0].uv[2][0] = 0;
-	trig_buffer[0].uv[2][1] = 255;
+	memcpy(&(trig_buffer[0].uv), uv, sizeof(uint8_t[3][2]));
 	unsigned buffer_offset = 0;
 	unsigned n_cur_stage = 1;
 	unsigned p;
