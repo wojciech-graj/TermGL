@@ -215,12 +215,13 @@ typedef struct TGLVertexShaderSimple {
 
 typedef void TGLVertexShader(const TGLVec3, TGLVec4, const void *);
 
-void tgl_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *data);
+void tgl3d_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *data);
 
 float tgl_sqr(const float val);
 float tgl_mag3(const float vec[3]);
 float tgl_magsqr3(const float vec[3]);
 float tgl_dot3(const float vec1[3], const float vec2[3]);
+float tgl_dot4(const float vec1[4], const float vec2[4]);
 float tgl_dot43(const float vec1[4], const float vec2[3]);
 
 void tgl_add3s(const float vec1[3], const float summand, float res[3]);
@@ -237,16 +238,7 @@ void tgl_cross(const float vec1[3], const float vec2[3], float res[3]);
 void tgl_norm3(float vec[3]);
 
 void tgl_mulmatvec(const TGLMat mat, const TGLVec3 vec, TGLVec4 res);
-void tgl_mulmatvec3(const TGLMat mat, const TGLVec3 vec, TGLVec3 res);
 void tgl_mulmat(const TGLMat mat1, const TGLMat mat2, TGLMat res);
-
-/**
- * Initializes 3D component of TermGL
- * @param tgl: a TGL context previously created using tgl_init()
- * @return 0 on success, -1 on failure
- * On failure, errno is set to value specified by: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
- */
-int tgl3d_init(TGL *tgl);
 
 /**
  * Sets the camera's perspective projection matrix
@@ -269,7 +261,7 @@ void tgl3d_cull_face(TGL *tgl, uint8_t settings);
  * @param intermediate_shader: (allow NULL) pointer to a shader function which is executed after vertex shader (projection and clipping) and before fragment shader (drawing onto framebuffer). Parameters are a projected triangle from vertex shader, and optional data. See termgl_test.c for example
  * @param data: (allow NULL) data which is passed to intermediate_shader
  */
-void tgl3d_shader(TGL *const tgl, const TGLTriangle in, const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLInterp *frag_shader, const void *const frag_data);
+void tgl3d_triangle(TGL *const tgl, const TGLTriangle in, const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLInterp *frag_shader, const void *const frag_data);
 
 /**
  * Various functions to edit TGLTransform matrices
@@ -282,11 +274,6 @@ void tgl3d_transform_translate(TGLTransform *transform, float x, float y, float 
  * Updates TGLTransform after any contained matrices were changed by above functions
  */
 void tgl3d_transform_update(TGLTransform *transform);
-
-/**
- * Applies TGLTransform to array of 3 3D points, typically triangle vertices
- */
-void tgl3d_transform_apply(TGLTransform *transform, TGLVec3 in[3], TGLVec3 out[3]);
 
 #endif /* TERMGL3D */
 
