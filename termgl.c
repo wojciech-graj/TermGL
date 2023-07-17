@@ -744,7 +744,7 @@ void tgl_delete(TGL *const tgl)
 
 #define MAP_COORD(half_, val_) ((val_ * half_) + half_)
 
-enum /* clip planes */ {
+enum ClipPlane {
 	CLIP_NEAR = 0,
 	CLIP_FAR,
 	CLIP_LEFT,
@@ -753,18 +753,8 @@ enum /* clip planes */ {
 	CLIP_BOTTOM,
 };
 
-const TGLVec3 clip_plane_normals[6] = {
-	[CLIP_NEAR] = { 0.f, 0.f, -1.f },
-	[CLIP_FAR] = { 0.f, 0.f, 1.f },
-	[CLIP_LEFT] = { 1.f, 0.f, 0.f },
-	[CLIP_RIGHT] = { -1.f, 0.f, 0.f },
-	[CLIP_BOTTOM] = { 0.f, 1.f, 0.f },
-	[CLIP_TOP] = { 0.f, -1.f, 0.f },
-};
-
-static float itgl_distance_point_plane(const TGLVec3 normal, const TGLVec4 point);
-static float itgl_line_intersect_plane(const TGLVec3 normal, const TGLVec3 start, const TGLVec3 end, TGLVec3 point);
-static unsigned itgl_clip_triangle_plane(const TGLVec3 normal, const TGLVec4 in[3], TGLVec4 out[2][3]);
+static void itgl_clip_line(const float dot_i, const TGLVec4 vec_i, const float dot_o, const TGLVec4 vec_o, TGLVec4 out);
+static unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, TGLVec4 in[3], TGLVec4 out[2][3]);
 
 __attribute__((const)) float tgl_sqr(const float val)
 {
@@ -784,6 +774,11 @@ __attribute__((const)) float tgl_magsqr3(const float vec[3])
 __attribute__((const)) float tgl_dot3(const float vec1[3], const float vec2[3])
 {
 	return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2];
+}
+
+__attribute__((const)) float tgl_dot4(const float vec1[4], const float vec2[4])
+{
+	return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2] + vec1[3] * vec2[3];
 }
 
 __attribute__((const)) float tgl_dot43(const float vec1[4], const float vec2[3])
@@ -860,38 +855,21 @@ void tgl_mulmatvec(const TGLMat mat, const TGLVec3 vec, TGLVec4 res)
 	res[3] = tgl_dot43(mat[3], vec);
 }
 
-void tgl_mulmatvec3(const TGLMat mat, const TGLVec3 vec, TGLVec3 res)
-{
-	res[0] = tgl_dot43(mat[0], vec);
-	res[1] = tgl_dot43(mat[1], vec);
-	res[2] = tgl_dot43(mat[2], vec);
-
-	float w = tgl_dot43(mat[3], vec);
-	if (w != 0.f) {
-		w = 1.f / w;
-		res[0] *= w;
-		res[1] *= w;
-		res[2] *= w;
-	}
-}
-
 void tgl_mulmat(const TGLMat mat1, const TGLMat mat2, TGLMat res)
 {
 	unsigned c, d, k;
-#pragma GCC unroll 4
 	for (c = 0; c < 4u; c++)
-#pragma GCC unroll 4
 		for (d = 0; d < 4u; d++) {
 			res[c][d] = 0.f;
-#pragma GCC unroll 4
 			for (k = 0; k < 4u; k++)
 				res[c][d] += mat1[c][k] * mat2[k][d];
 		}
 }
 
-__attribute__((const)) float itgl_distance_point_plane(const TGLVec3 normal, const TGLVec4 point)
+void tgl3d_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *const data)
 {
-	return tgl_dot3(normal, point) + point[3];
+	const TGLVertexShaderSimple *simple = data;
+	tgl_mulmatvec(simple->mat, vert, out);
 }
 
 void tgl3d_camera(TGLMat camera, const int width, const int height, const float fov, const float near_val, const float far_val)
@@ -932,87 +910,76 @@ void tgl3d_transform_update(TGLTransform *const transform)
 	tgl_mulmat((const TGLVec4 *)temp, (const TGLVec4 *)transform->rotate, transform->result);
 }
 
-void tgl3d_transform_apply(TGLTransform *const transform, TGLVec3 in[3], TGLVec3 out[3])
+void itgl_clip_line(const float dot_i, const TGLVec4 vec_i, const float dot_o, const TGLVec4 vec_o, TGLVec4 out)
 {
-	tgl_mulmatvec3((const TGLVec4 *)transform->result, in[0], out[0]);
-	tgl_mulmatvec3((const TGLVec4 *)transform->result, in[1], out[1]);
-	tgl_mulmatvec3((const TGLVec4 *)transform->result, in[2], out[2]);
+	float d = dot_i / (dot_i - dot_o);
+	out[0] = vec_i[0] * (1 - d) + vec_o[0] * d;
+	out[1] = vec_i[1] * (1 - d) + vec_o[1] * d;
+	out[2] = vec_i[2] * (1 - d) + vec_o[2] * d;
+	out[3] = vec_i[3] * (1 - d) + vec_o[3] * d;
 }
 
-float itgl_line_intersect_plane(const TGLVec3 normal, const TGLVec3 start, const TGLVec3 end, TGLVec3 point)
+float itgl_clip_plane_dot(const TGLVec4 v, const enum ClipPlane plane)
 {
-	TGLVec3 line_vec;
-	tgl_sub3v(start, end, line_vec);
-	const float distance = -(tgl_dot3(normal, start) + 1.f) / (tgl_dot3(normal, line_vec));
-	tgl_mul3s(line_vec, distance, point);
-	tgl_add3v(point, start, point);
-	return distance;
+	switch (plane) {
+	case CLIP_LEFT:
+		return v[0] > +v[3];
+	case CLIP_RIGHT:
+		return -v[0] + v[3];
+	case CLIP_BOTTOM:
+		return v[1] + v[3];
+	case CLIP_TOP:
+		return -v[1] + v[3];
+	case CLIP_NEAR:
+		return v[2] + v[3];
+	case CLIP_FAR:
+		return -v[2] + v[3];
+	}
+	TGL_UNREACHABLE();
+	return 0;
 }
 
-unsigned itgl_clip_triangle_plane(const TGLVec3 normal, const TGLVec4 in[3], TGLVec4 out[2][3])
+unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, TGLVec4 in[3], TGLVec4 out[2][3])
 {
-	/*const TGLVec3 di = {
-		itgl_distance_point_plane(normal, in[0]),
-		itgl_distance_point_plane(normal, in[1]),
-		itgl_distance_point_plane(normal, in[2]),
-	};
-
 	unsigned n_inside = 0, n_outside = 0;
 	unsigned inside[3], outside[3];
+	float dps[3];
 	unsigned i;
 	for (i = 0; i < 3; i++) {
-		if (di[i] >= 0.f)
+		dps[i] = itgl_clip_plane_dot(in[i], plane);
+		if (dps[i] >= 0.f)
 			inside[n_inside++] = i;
 		else
 			outside[n_outside++] = i;
 	}
 
-	float d;
-
 	switch (n_inside) {
 	case 0:
 		return 0;
-	case 3:
-		memcpy(&out[0], in, sizeof(TGLTriangle));
-		return 1;
 	case 1:
-		memcpy(out[0].vertices[0], in->vertices[inside[0]], sizeof(TGLVec3));
-		out[0].intensity[0] = in->intensity[inside[0]];
-#pragma GCC unroll 2
-		for (unsigned i = 0; i < 2; i++) {
-			d = itgl_line_intersect_plane(normal, out[0].vertices[0], in->vertices[outside[i]], out[0].vertices[i + 1]);
-			out[0].intensity[i + 1] = out[0].intensity[0] * (1.f - d) + in->intensity[outside[i]] * (d);
-		}
+		memcpy(out[0][0], in[inside[0]], sizeof(TGLVec4));
+		itgl_clip_line(dps[inside[0]], in[inside[0]], dps[outside[0]], in[outside[0]], out[0][1]);
+		itgl_clip_line(dps[inside[0]], in[inside[0]], dps[outside[1]], in[outside[1]], out[0][2]);
 		return 1;
 	case 2:
-		memcpy(out[0].vertices[0], in->vertices[inside[0]], sizeof(TGLVec3));
-		memcpy(out[0].vertices[1], in->vertices[inside[1]], sizeof(TGLVec3));
-		d = itgl_line_intersect_plane(normal, out[0].vertices[0], in->vertices[outside[0]], out[0].vertices[2]);
-		out[0].intensity[0] = in->intensity[inside[0]];
-		out[0].intensity[1] = in->intensity[inside[1]];
-		out[0].intensity[2] = out[0].intensity[0] * (1.f - d) + in->intensity[outside[0]] * (d);
+		memcpy(out[0][0], in[inside[0]], sizeof(TGLVec4));
+		memcpy(out[0][1], in[inside[1]], sizeof(TGLVec4));
+		itgl_clip_line(dps[inside[0]], in[inside[0]], dps[outside[0]], in[outside[0]], out[0][2]);
 
-		memcpy(out[1].vertices[0], in->vertices[inside[1]], sizeof(TGLVec3));
-		memcpy(out[1].vertices[1], out->vertices[2], sizeof(TGLVec3));
-		d = itgl_line_intersect_plane(normal, out[1].vertices[0], in->vertices[outside[0]], out[1].vertices[2]);
-		out[1].intensity[0] = in->intensity[inside[1]];
-		out[1].intensity[1] = out[0].intensity[2];
-		out[1].intensity[2] = out[1].intensity[0] * (1.f - d) + in->intensity[outside[0]] * (d);
+		memcpy(out[1][0], in[inside[1]], sizeof(TGLVec4));
+		memcpy(out[1][1], out[0][2], sizeof(TGLVec4));
+		itgl_clip_line(dps[inside[1]], in[inside[1]], dps[outside[0]], in[outside[0]], out[1][2]);
 
 		return 2;
+	case 3:
+		memcpy(&out[0], in, sizeof(TGLVec4[3]));
+		return 1;
 	}
 	TGL_UNREACHABLE();
-	return 0;*/
 	return 0;
 }
 
-void tgl_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *data)
-{
-	const TGLVertexShaderSimple *simple = data;
-	tgl_mulmatvec(simple->mat, vert, out);
-}
-
-void tgl3d_shader(TGL *const tgl, const TGLTriangle in, const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLInterp *frag_shader, const void *const frag_data)
+void tgl3d_triangle(TGL *const tgl, const TGLTriangle in, const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLInterp *frag_shader, const void *const frag_data)
 {
 	TGLVec4 verts[3];
 	unsigned i;
@@ -1028,51 +995,68 @@ void tgl3d_shader(TGL *const tgl, const TGLTriangle in, const bool fill, TGLVert
 			return;
 	}
 
-	TGLVec3 v[3];
-	for (i = 0; i < 3; i++) {
-		v[i][0] = verts[i][0] / verts[i][3];
-		v[i][1] = verts[i][1] / verts[i][3];
-		v[i][2] = verts[i][2] / verts[i][3];
+	TGLVec4 trig_buffer[127][3]; /* the size of this buffer assumes a pathological case which is probably impossible */
+	memcpy(&trig_buffer[0], verts, sizeof(TGLVec4[3]));
+	unsigned buffer_offset = 0;
+	unsigned n_cur_stage = 1;
+	unsigned p;
+	for (p = 0; p < 6; p++) {
+		unsigned n_next_stage = 0;
+		for (i = 0; i < n_cur_stage; i++) {
+			n_next_stage += itgl_clip_triangle_plane(p, trig_buffer[i + buffer_offset], &trig_buffer[buffer_offset + n_cur_stage + n_next_stage]);
+		}
+		buffer_offset += n_cur_stage;
+		n_cur_stage = n_next_stage;
 	}
 
 	float half_width = tgl->width * .5f;
 	float half_height = tgl->height * .5f;
 
 	/* FRAGMENT SHADER */
-	if (fill)
-		tgl_triangle_fill(tgl,
-			MAP_COORD(half_width, v[0][0]),
-			MAP_COORD(half_height, v[0][1]),
-			v[0][2],
-			0,
-			0,
-			MAP_COORD(half_width, v[1][0]),
-			MAP_COORD(half_height, v[1][1]),
-			v[1][2],
-			255,
-			MAP_COORD(half_width, v[2][0]),
-			MAP_COORD(half_height, v[2][1]),
-			v[2][2],
-			255,
-			frag_shader,
-			frag_data);
-	else
-		tgl_triangle(tgl,
-			MAP_COORD(half_width, v[0][0]),
-			MAP_COORD(half_height, v[0][1]),
-			v[0][2],
-			0,
-			0,
-			MAP_COORD(half_width, v[1][0]),
-			MAP_COORD(half_height, v[1][1]),
-			v[1][2],
-			255,
-			MAP_COORD(half_width, v[2][0]),
-			MAP_COORD(half_height, v[2][1]),
-			v[2][2],
-			255,
-			frag_shader,
-			frag_data);
+	for (i = 0; i < n_cur_stage; i++) {
+		TGLVec3 v[3];
+		unsigned j;
+		for (j = 0; j < 3; j++) {
+			v[j][0] = trig_buffer[i + buffer_offset][j][0] / trig_buffer[i + buffer_offset][j][3];
+			v[j][1] = trig_buffer[i + buffer_offset][j][1] / trig_buffer[i + buffer_offset][j][3];
+			v[j][2] = trig_buffer[i + buffer_offset][j][2] / trig_buffer[i + buffer_offset][j][3];
+		}
+
+		if (fill)
+			tgl_triangle_fill(tgl,
+				MAP_COORD(half_width, v[0][0]),
+				MAP_COORD(half_height, v[0][1]),
+				v[0][2],
+				0,
+				0,
+				MAP_COORD(half_width, v[1][0]),
+				MAP_COORD(half_height, v[1][1]),
+				v[1][2],
+				255,
+				MAP_COORD(half_width, v[2][0]),
+				MAP_COORD(half_height, v[2][1]),
+				v[2][2],
+				255,
+				frag_shader,
+				frag_data);
+		else
+			tgl_triangle(tgl,
+				MAP_COORD(half_width, v[0][0]),
+				MAP_COORD(half_height, v[0][1]),
+				v[0][2],
+				0,
+				0,
+				MAP_COORD(half_width, v[1][0]),
+				MAP_COORD(half_height, v[1][1]),
+				v[1][2],
+				255,
+				MAP_COORD(half_width, v[2][0]),
+				MAP_COORD(half_height, v[2][1]),
+				v[2][2],
+				255,
+				frag_shader,
+				frag_data);
+	}
 }
 
 void tgl3d_cull_face(TGL *tgl, const uint8_t settings)

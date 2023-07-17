@@ -210,8 +210,6 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 
 	TGLMat camera;
 	tgl3d_camera(camera, res_x, res_y, 1.57f, 0.1f, 5.f);
-	TGLVertexShaderSimple vertex_shader_data;
-	memcpy(vertex_shader_data.mat, camera, sizeof(TGLMat));
 
 	// Load triangles
 	TGLTriangle *trigs;
@@ -243,20 +241,13 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 		unsigned i;
 		for (i = 0; i < n_trigs; i++) {
 			// Apply transformations
-			TGLVec3 view[3];
 			TGLMat to_view;
-			tgl_mulmat((const TGLVec4*)camera_t.result, (const TGLVec4*)obj_t.result, to_view);
-			tgl_mulmatvec3((const TGLVec4*)to_view, trigs[i][0], view[0]);
-			tgl_mulmatvec3((const TGLVec4*)to_view, trigs[i][1], view[1]);
-			tgl_mulmatvec3((const TGLVec4*)to_view, trigs[i][2], view[2]);
-
-			for (int j = 0; j < 3; j++) {
-				if (fabsf(view[j][2]) < 0.1f)
-					view[j][2] += copysignf(.1f, view[j][2]);
-			}
+			TGLVertexShaderSimple vertex_shader_data;
+			tgl_mulmat((const TGLVec4 *)camera_t.result, (const TGLVec4 *)obj_t.result, to_view);
+			tgl_mulmat((const TGLVec4 *)camera, (const TGLVec4 *)to_view, vertex_shader_data.mat);
 
 			//Draw to framebuffer
-			tgl3d_shader(tgl, (const TGLVec3 *)view, true, &tgl_vertex_shader_simple, &vertex_shader_data, &teapot_shader, &view);
+			tgl3d_triangle(tgl, (const TGLVec3 *)trigs[i], true, &tgl3d_vertex_shader_simple, &vertex_shader_data, &teapot_shader, &trigs[i]);
 		}
 
 		assert(!tgl_flush(tgl));
@@ -341,18 +332,6 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 			.grad = &gradient_min,
 		};
 		tgl_line(tgl, x0, y0, 0, 0, 0, x1, y1, 0, 255, 0, &tgl_interp_lin_1d, &interp);
-
-		/*TGLInterpLin2D interp2d = {
-			.uv0 = 0,
-			.u1 = 192,
-			.v1 = 32,
-			.color = color,
-			.grad = &gradient_min,
-		};
-
-		tgl_triangle_fill(tgl, 1, 4, 0, 0, 0, 10, 1, 0, 255, 15, 8, 0, 255, &tgl_interp_lin_2d, &interp2d);
-		tgl_triangle(tgl, 11, 4, 0, 0, 0, 20, 1, 0, 255, 25, 8, 0, 255, &tgl_interp_lin_2d, &interp2d);*/
-		//TODO : delete commented-out code
 
 		assert(!tgl_flush(tgl));
 		// Buffer clear not yet required
