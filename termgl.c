@@ -2,7 +2,7 @@
  * Copyright (c) 2021-2023 Wojciech Graj
  *
  * Licensed under the MIT license: https://opensource.org/licenses/MIT
- * Permission is granted to use, copy, modify, and redistribute the work.
+n * Permission is granted to use, copy, modify, and redistribute the work.
  * Full license information available in the project LICENSE file.
  **/
 
@@ -77,12 +77,16 @@ struct TGL {
 		};                                                       \
 	} while (0)
 
-#define SET_PIXEL(tgl_, x_, y_, z_, v_char_, color_)                      \
+#define SET_PIXEL(tgl_, x_, y_, z_, u_, v_, t_, data_)                    \
 	do {                                                              \
+		char c_;                                                  \
+		uint16_t color_;                                          \
 		if (!tgl_->z_buffer_enabled) {                            \
-			SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_);     \
+			t_(u_, v_, &color_, &c_, data_);                  \
+			SET_PIXEL_RAW(tgl_, x_, y_, c_, color_);          \
 		} else if (z_ >= tgl_->z_buffer[y_ * tgl_->width + x_]) { \
-			SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_);     \
+			t_(u_, v_, &color_, &c_, data_);                  \
+			SET_PIXEL_RAW(tgl_, x_, y_, c_, color_);          \
 			tgl->z_buffer[y_ * tgl_->width + x_] = z_;        \
 		}                                                         \
 	} while (0)
@@ -93,6 +97,8 @@ struct TGL {
 			return retval_;  \
 	} while (0)
 #define CALL_STDOUT(stmt_, retval_) CALL((stmt_) == EOF, retval_)
+
+#define MIX(begin, end, d) ((begin) * (d) + (end) * (1 - (d)))
 
 #ifndef TERMGL_MINIMAL
 const TGLGradient gradient_full = {
@@ -122,7 +128,7 @@ void tgl_pixel_shader_simple(const uint8_t u, const uint8_t v, uint16_t *const c
 void tgl_pixel_shader_texture(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data)
 {
 	const TGLPixelShaderTexture *const shader = data;
-	unsigned idx = u * shader->width / 256 + shader->width * (v * shader->height / 256);
+	const unsigned idx = u * shader->width / 256 + shader->width * (v * shader->height / 256);
 	*color = shader->colors[idx];
 	*c = shader->chars[idx];
 }
@@ -342,10 +348,7 @@ void tgl_puts(TGL *const tgl, const int x, int y, const char *str, const uint16_
 void tgl_point(TGL *const tgl, TGLVert v0, TGLPixelShader *const t, const void *const data)
 {
 	itgl_clip(tgl, &v0.x, &v0.y);
-	char c;
-	uint16_t color;
-	t(v0.u, v0.v, &color, &c, data);
-	SET_PIXEL(tgl, v0.x, v0.y, v0.z, c, color);
+	SET_PIXEL(tgl, v0.x, v0.y, v0.z, v0.u, v0.v, t, data);
 }
 
 /* Bresenham's line algorithm */
@@ -357,7 +360,7 @@ void tgl_line(TGL *const tgl, TGLVert v0, TGLVert v1, TGLPixelShader *const t, c
 		if (v0.x > v1.x) {
 			SWAP(v1, v0);
 		}
-		int dx = v1.x - v0.x;
+		const int dx = v1.x - v0.x;
 		int dy = v1.y - v0.y;
 		int yi;
 		if (dy > 0) {
@@ -370,12 +373,11 @@ void tgl_line(TGL *const tgl, TGLVert v0, TGLVert v1, TGLPixelShader *const t, c
 		int y = v0.y;
 		int x;
 		for (x = v0.x; x <= v1.x; x++) {
-			uint16_t color;
-			char c;
-			t(((x - v0.x) * v1.u + (v1.x - x) * v0.u) / dx, ((x - v0.x) * v1.v + (v1.x - x) * v0.v) / dx, &color, &c, data);
 			SET_PIXEL(tgl, x, y,
 				((x - v0.x) * v1.z + (v0.x - x) * v1.z) / dx,
-				c, color);
+				((x - v0.x) * v1.u + (v1.x - x) * v0.u) / dx,
+				((x - v0.x) * v1.v + (v1.x - x) * v0.v) / dx,
+				t, data);
 			if (d > 0) {
 				y += yi;
 				d += 2 * (dy - dx);
@@ -388,7 +390,7 @@ void tgl_line(TGL *const tgl, TGLVert v0, TGLVert v1, TGLPixelShader *const t, c
 			SWAP(v1, v0);
 		}
 		int dx = v1.x - v0.x;
-		int dy = v1.y - v0.y;
+		const int dy = v1.y - v0.y;
 		int xi;
 		if (dx > 0) {
 			xi = 1;
@@ -400,12 +402,11 @@ void tgl_line(TGL *const tgl, TGLVert v0, TGLVert v1, TGLPixelShader *const t, c
 		int x = v0.x;
 		int y;
 		for (y = v0.y; y <= v1.y; y++) {
-			uint16_t color;
-			char c;
-			t(((y - v0.y) * v1.u + (v1.y - y) * v0.u) / dy, ((y - v0.y) * v1.v + (v1.y - y) * v0.v) / dy, &color, &c, data);
 			SET_PIXEL(tgl, x, y,
 				((y - v0.y) * v1.z + (v1.y - y) * v0.z) / dx,
-				c, color);
+				((y - v0.y) * v1.u + (v1.y - y) * v0.u) / dy,
+				((y - v0.y) * v1.v + (v1.y - y) * v0.v) / dy,
+				t, data);
 			if (d > 0) {
 				x += xi;
 				d += 2 * (dx - dy);
@@ -426,20 +427,16 @@ void tgl_triangle(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelSh
 void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t u0, const uint8_t v0, const int x1, const float z1, const uint8_t u1, const uint8_t v1, const int y, TGLPixelShader *t, const void *const data)
 {
 	if (x0 == x1) {
-		char c;
-		uint16_t color;
-		t(u0, v0, &color, &c, data);
-		SET_PIXEL(tgl, x0, y, z0, c, color);
+		SET_PIXEL(tgl, x0, y, z0, u0, v0, t, data);
 	} else {
 		const int dx = x1 - x0;
 		int x;
 		for (x = x0; x <= x1; x++) {
-			char c;
-			uint16_t color;
-			t(((x - x0) * u1 + (x1 - x) * u0) / dx, ((x - x0) * v1 + (x1 - x) * v0) / dx, &color, &c, data);
 			SET_PIXEL(tgl, x, y,
 				((x - x0) * z1 + (x1 - x) * z0) / dx,
-				c, color);
+				((x - x0) * u1 + (x1 - x) * u0) / dx,
+				((x - x0) * v1 + (x1 - x) * v0) / dx,
+				t, data);
 		}
 	}
 }
@@ -550,12 +547,12 @@ void tgl_triangle_fill(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPi
 		if (maxx < t1x)
 			maxx = t1x;
 
-		uint8_t vu0 = ((y - v0.y) * v1.u + (v1.y - y) * v0.u) / (v1.y - v0.y);
-		uint8_t vv0 = ((y - v0.y) * v1.v + (v1.y - y) * v0.v) / (v1.y - v0.y);
-		uint8_t vu1 = ((y - v0.y) * v2.u + (v2.y - y) * v0.u) / (v2.y - v0.y);
-		uint8_t vv1 = ((y - v0.y) * v2.v + (v2.y - y) * v0.v) / (v2.y - v0.y);
-		float vz0 = ((y - v0.y) * v1.z + (v1.y - y) * v0.z) / (v1.y - v0.y);
-		float vz1 = ((y - v0.y) * v2.z + (v2.y - y) * v0.z) / (v2.y - v0.y);
+		const uint8_t vu0 = ((y - v0.y) * v1.u + (v1.y - y) * v0.u) / (v1.y - v0.y);
+		const uint8_t vv0 = ((y - v0.y) * v1.v + (v1.y - y) * v0.v) / (v1.y - v0.y);
+		const uint8_t vu1 = ((y - v0.y) * v2.u + (v2.y - y) * v0.u) / (v2.y - v0.y);
+		const uint8_t vv1 = ((y - v0.y) * v2.v + (v2.y - y) * v0.v) / (v2.y - v0.y);
+		const float vz0 = ((y - v0.y) * v1.z + (v1.y - y) * v0.z) / (v1.y - v0.y);
+		const float vz1 = ((y - v0.y) * v2.z + (v2.y - y) * v0.z) / (v2.y - v0.y);
 
 		if (t0x < t1x)
 			itgl_horiz_line(tgl, minx, vz0, vu0, vv0, maxx, vz1, vu1, vv1, y, t, data);
@@ -644,12 +641,12 @@ LBL_NEXT:
 			maxx = t1x;
 
 		if (v1.y != v2.y) {
-			uint8_t vu0 = ((y - v0.y) * v2.u + (v2.y - y) * v0.u) / (v2.y - v0.y);
-			uint8_t vv0 = ((y - v0.y) * v2.v + (v2.y - y) * v0.v) / (v2.y - v0.y);
-			uint8_t vu1 = ((y - v1.y) * v2.u + (v2.y - y) * v1.u) / (v2.y - v1.y);
-			uint8_t vv1 = ((y - v1.y) * v2.v + (v2.y - y) * v1.v) / (v2.y - v1.y);
-			float vz0 = ((y - v0.y) * v2.z + (v2.y - y) * v0.z) / (v2.y - v0.y);
-			float vz1 = ((y - v1.y) * v2.z + (v2.y - y) * v1.z) / (v2.y - v1.y);
+			const uint8_t vu0 = ((y - v0.y) * v2.u + (v2.y - y) * v0.u) / (v2.y - v0.y);
+			const uint8_t vv0 = ((y - v0.y) * v2.v + (v2.y - y) * v0.v) / (v2.y - v0.y);
+			const uint8_t vu1 = ((y - v1.y) * v2.u + (v2.y - y) * v1.u) / (v2.y - v1.y);
+			const uint8_t vv1 = ((y - v1.y) * v2.v + (v2.y - y) * v1.v) / (v2.y - v1.y);
+			const float vz0 = ((y - v0.y) * v2.z + (v2.y - y) * v0.z) / (v2.y - v0.y);
+			const float vz1 = ((y - v1.y) * v2.z + (v2.y - y) * v1.z) / (v2.y - v1.y);
 
 			if (t1x < t0x)
 				itgl_horiz_line(tgl, minx, vz0, vu0, vv0, maxx, vz1, vu1, vv1, y, t, data);
@@ -832,13 +829,6 @@ void tgl_add3v(const float vec1[3], const float vec2[3], float res[3])
 	res[2] = vec1[2] + vec2[2];
 }
 
-void tgl_sub3v(const float vec1[3], const float vec2[3], float res[3])
-{
-	res[0] = vec1[0] - vec2[0];
-	res[1] = vec1[1] - vec2[1];
-	res[2] = vec1[2] - vec2[2];
-}
-
 void tgl_mul3v(const float vec1[3], const float vec2[3], float res[3])
 {
 	res[0] = vec1[0] * vec2[0];
@@ -851,13 +841,6 @@ void tgl_inv3(const float vec[3], float res[3])
 	res[0] = 1.f / vec[0];
 	res[1] = 1.f / vec[1];
 	res[2] = 1.f / vec[2];
-}
-
-void tgl_cross(const float vec1[3], const float vec2[3], float res[3])
-{
-	res[0] = vec1[1] * vec2[2] - vec1[2] * vec2[1];
-	res[1] = vec1[2] * vec2[0] - vec1[0] * vec2[2];
-	res[2] = vec1[0] * vec2[1] - vec1[1] * vec2[0];
 }
 
 void tgl_norm3(float vec[3])
@@ -922,15 +905,29 @@ void tgl_mul3s(const float vec[3], const float mul, float res[3])
 	res[2] = vec[2] * mul;
 }
 
+void tgl_sub3v(const float vec1[3], const float vec2[3], float res[3])
+{
+	res[0] = vec1[0] - vec2[0];
+	res[1] = vec1[1] - vec2[1];
+	res[2] = vec1[2] - vec2[2];
+}
+
+void tgl_cross(const float vec1[3], const float vec2[3], float res[3])
+{
+	res[0] = vec1[1] * vec2[2] - vec1[2] * vec2[1];
+	res[1] = vec1[2] * vec2[0] - vec1[0] * vec2[2];
+	res[2] = vec1[0] * vec2[1] - vec1[1] * vec2[0];
+}
+
 void itgl_clip_line(const float dot_i, const TGLVec4 vec_i, const uint8_t uv_i[2], const float dot_o, const TGLVec4 vec_o, const uint8_t uv_o[2], TGLVec4 vec_out, uint8_t uv_out[2])
 {
-	float d = dot_i / (dot_i - dot_o);
-	vec_out[0] = vec_i[0] * (1 - d) + vec_o[0] * d;
-	vec_out[1] = vec_i[1] * (1 - d) + vec_o[1] * d;
-	vec_out[2] = vec_i[2] * (1 - d) + vec_o[2] * d;
-	vec_out[3] = vec_i[3] * (1 - d) + vec_o[3] * d;
-	uv_out[0] = uv_i[0] * (1 - d) + uv_o[0] * d;
-	uv_out[1] = uv_i[1] * (1 - d) + uv_o[1] * d;
+	const float d = dot_i / (dot_i - dot_o);
+	vec_out[0] = MIX(vec_o[0], vec_i[0], d);
+	vec_out[1] = MIX(vec_o[1], vec_i[1], d);
+	vec_out[2] = MIX(vec_o[2], vec_i[2], d);
+	vec_out[3] = MIX(vec_o[3], vec_i[3], d);
+	uv_out[0] = MIX(uv_o[0], uv_i[0], d);
+	uv_out[1] = MIX(uv_o[1], uv_i[1], d);
 }
 
 float itgl_clip_plane_dot(const TGLVec4 v, const enum ClipPlane plane)
@@ -1042,12 +1039,8 @@ void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const
 	for (i = 0; i < n_cur_stage; i++) {
 		TGLVec3 v[3];
 		unsigned j;
-		for (j = 0; j < 3; j++) {
-			float invw = 1.f / trig_buffer[i + buffer_offset].verts[j][3];
-			v[j][0] = trig_buffer[i + buffer_offset].verts[j][0] * invw;
-			v[j][1] = trig_buffer[i + buffer_offset].verts[j][1] * invw;
-			v[j][2] = trig_buffer[i + buffer_offset].verts[j][2] * invw;
-		}
+		for (j = 0; j < 3; j++)
+			tgl_mul3s(trig_buffer[i + buffer_offset].verts[j], 1.f / trig_buffer[i + buffer_offset].verts[j][3], v[j]);
 
 		if (fill)
 			tgl_triangle_fill(tgl,
