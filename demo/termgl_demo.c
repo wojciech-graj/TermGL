@@ -205,11 +205,11 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 {
 	TGL *const tgl = tgl_init(res_x, res_y);
 	assert(tgl);
-	tgl3d_cull_face(tgl, TGL_BACK | TGL_CCW);
+	tgl_cull_face(tgl, TGL_BACK | TGL_CCW);
 	assert(!tgl_enable(tgl, TGL_DOUBLE_CHARS | TGL_CULL_FACE | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER | TGL_PROGRESSIVE));
 
 	TGLMat camera;
-	tgl3d_camera(camera, res_x, res_y, 1.57f, 0.1f, 5.f);
+	tgl_camera(camera, res_x, res_y, 1.57f, 0.1f, 5.f);
 
 	// Load triangles
 	TGLTriangle *trigs;
@@ -218,36 +218,40 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 	uint32_t n_trigs = stl_load(stl_file, &trigs);
 	fclose(stl_file);
 
-	// Edit camera transformations
-	TGLTransform camera_t;
-	tgl3d_transform_scale(&camera_t, 1.0f, 1.0f, 1.0f);
-	tgl3d_transform_rotate(&camera_t, 2.1f, 0.f, 0.f);
-	tgl3d_transform_translate(&camera_t, 0.f, 0.f, 1.f);
-	tgl3d_transform_update(&camera_t);
+	TGLMat temp;
+
+	// Create transformation matrices for camera
+	TGLMat camera_scale, camera_rotate, camera_translate, camera_t;
+	tgl_scale(camera_scale, 1.0f, 1.0f, 1.0f);
+	tgl_rotate(camera_rotate, 2.1f, 0.f, 0.f);
+	tgl_translate(camera_translate, 0.f, 0.f, 2.f);
+	tgl_mulmat((const TGLVec4 *)camera_translate, (const TGLVec4 *)camera_scale, temp);
+	tgl_mulmat((const TGLVec4 *)temp, (const TGLVec4 *)camera_rotate, camera_t);
 
 	// Create transformation matrices for object
-	TGLTransform obj_t;
-	tgl3d_transform_scale(&obj_t, 0.12f, 0.12f, 0.12f);
-	tgl3d_transform_translate(&obj_t, 0.f, 0.f, 0.f);
+	TGLMat obj_scale, obj_rotate, obj_translate, obj_t;
+	tgl_scale(obj_scale, 0.12f, 0.12f, 0.12f);
+	tgl_translate(obj_translate, 0.f, 0.f, 0.f);
 
 	const float dn = 0.02f;
 	float n = 0;
 
 	while (1) {
 		//Edit transformation to move objects
-		tgl3d_transform_rotate(&obj_t, 0.f, 0.f, n);
-		tgl3d_transform_update(&obj_t);
+		tgl_rotate(obj_rotate, 0.f, 0.f, n);
+		tgl_mulmat((const TGLVec4 *)obj_translate, (const TGLVec4 *)obj_scale, temp);
+		tgl_mulmat((const TGLVec4 *)temp, (const TGLVec4 *)obj_rotate, obj_t);
 
 		unsigned i;
 		for (i = 0; i < n_trigs; i++) {
 			// Apply transformations
 			TGLMat to_view;
 			TGLVertexShaderSimple vertex_shader_data;
-			tgl_mulmat((const TGLVec4 *)camera_t.result, (const TGLVec4 *)obj_t.result, to_view);
+			tgl_mulmat((const TGLVec4 *)camera_t, (const TGLVec4 *)obj_t, to_view);
 			tgl_mulmat((const TGLVec4 *)camera, (const TGLVec4 *)to_view, vertex_shader_data.mat);
 
 			//Draw to framebuffer
-			tgl3d_triangle(tgl, (const TGLVec3 *)trigs[i], true, &tgl3d_vertex_shader_simple, &vertex_shader_data, &teapot_shader, &trigs[i]);
+			tgl_triangle_3d(tgl, (const TGLVec3 *)trigs[i], true, &tgl3d_vertex_shader_simple, &vertex_shader_data, &teapot_shader, &trigs[i]);
 		}
 
 		assert(!tgl_flush(tgl));
@@ -325,9 +329,7 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 		uint16_t color = fg_colors[rand() % 8]
 			| bkg_colors[rand() % 8];
 
-		TGLInterpLin1D interp = {
-			.u0 = rand() % 256,
-			.u1 = rand() % 256,
+		TGLPixelShaderSimple interp = {
 			.color = color,
 			.grad = &gradient_min,
 		};
@@ -335,17 +337,17 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 				      x0,
 				      y0,
 				      0,
-				      0,
+				      rand() % 256,
 				      0,
 			      },
 			(TGLVert){
 				x1,
 				y1,
 				0,
-				255,
+				rand() % 256,
 				0,
 			},
-			&tgl_interp_lin_1d, &interp);
+			&tgl_pixel_shader_simple, &interp);
 
 		assert(!tgl_flush(tgl));
 		// Buffer clear not yet required
