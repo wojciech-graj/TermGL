@@ -934,7 +934,7 @@ float itgl_clip_plane_dot(const TGLVec4 v, const enum ClipPlane plane)
 {
 	switch (plane) {
 	case CLIP_LEFT:
-		return v[0] > +v[3];
+		return v[0] + v[3];
 	case CLIP_RIGHT:
 		return -v[0] + v[3];
 	case CLIP_BOTTOM:
