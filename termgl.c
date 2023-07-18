@@ -145,6 +145,25 @@ inline void itgl_clip(const TGL *const tgl, int *const x, int *const y)
 	*y = MAX(MIN(tgl->max_y, *y), 0);
 }
 
+int tgl_boot(void)
+{
+#ifdef TGL_OS_WINDOWS
+	const HANDLE hOutputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+	WINDOWS_CALL(hOutputHandle == INVALID_HANDLE_VALUE, -1);
+	DWORD mode;
+	WINDOWS_CALL(!GetConsoleMode(hOutputHandle, &mode), -1);
+	mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+	WINDOWS_CALL(!SetConsoleMode(hOutputHandle, mode), -1);
+
+	const HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
+	WINDOWS_CALL(hInputHandle == INVALID_HANDLE_VALUE, -1);
+	WINDOWS_CALL(!GetConsoleMode(hInputHandle, &mode), -1);
+	mode &= ~(ENABLE_MOUSE_INPUT | ENABLE_WINDOW_INPUT | ENABLE_QUICK_EDIT_MODE);
+	WINDOWS_CALL(!SetConsoleMode(hInputHandle, mode), -1);
+#endif
+	return 0;
+}
+
 void tgl_clear(TGL *const tgl, const uint8_t buffers)
 {
 	unsigned i;
@@ -170,25 +189,6 @@ void tgl_clear_screen(void)
 
 TGL *tgl_init(const unsigned width, const unsigned height)
 {
-#ifdef TGL_OS_WINDOWS
-	static bool win_init = false;
-	if (!win_init) {
-		win_init = true;
-
-		const HANDLE hOutputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-		WINDOWS_CALL(hOutputHandle == INVALID_HANDLE_VALUE, NULL);
-		DWORD mode;
-		WINDOWS_CALL(!GetConsoleMode(hOutputHandle, &mode), NULL);
-		mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-		WINDOWS_CALL(!SetConsoleMode(hOutputHandle, mode), NULL);
-
-		const HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
-		WINDOWS_CALL(hInputHandle == INVALID_HANDLE_VALUE, NULL);
-		WINDOWS_CALL(!GetConsoleMode(hInputHandle, &mode), NULL);
-		mode &= ~(ENABLE_MOUSE_INPUT | ENABLE_WINDOW_INPUT | ENABLE_QUICK_EDIT_MODE);
-		WINDOWS_CALL(!SetConsoleMode(hInputHandle, mode), NULL);
-	}
-#endif
 	TGL *const tgl = TGL_MALLOC(sizeof(TGL));
 	if (!tgl)
 		return NULL;

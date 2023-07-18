@@ -764,6 +764,8 @@ int main(int argc, char **argv)
 	(void)argc;
 	(void)argv;
 
+	assert(!tgl_boot());
+
 	assert(!tglutil_set_window_title(HELPTEXT_HEADER));
 
 	tgl_clear_screen();
