@@ -323,7 +323,9 @@ int tglutil_set_console_size(unsigned col, unsigned row);
 /**
  * Attempts to set window title
  * @return 0 on lack of errors, -1 on failure
- * On failure, errno is set to value specified by: https://man7.org/linux/man-pages/man3/fputc.3p.html#ERRORS
+ * On failure, errno is set to value specified by:
+ *  UNIX: https://man7.org/linux/man-pages/man3/fputc.3p.html#ERRORS
+ *  Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
 int tglutil_set_window_title(const char *title);
 
