@@ -2,7 +2,7 @@
  * Copyright (c) 2021-2023 Wojciech Graj
  *
  * Licensed under the MIT license: https://opensource.org/licenses/MIT
-n * Permission is granted to use, copy, modify, and redistribute the work.
+ * Permission is granted to use, copy, modify, and redistribute the work.
  * Full license information available in the project LICENSE file.
  **/
 
@@ -278,10 +278,16 @@ int tgl_flush(TGL *const tgl)
 	unsigned row, col;
 	Pixel *pixel = tgl->frame_buffer;
 	const bool double_chars = tgl->settings & TGL_DOUBLE_CHARS;
+	const bool double_width = tgl->settings & TGL_DOUBLE_WIDTH;
 
 	if (tgl->output_buffer_size) {
 		char *output_buffer_loc = tgl->output_buffer;
 		for (row = 0; row < tgl->height; row++) {
+			if (double_width) {
+				*output_buffer_loc++ = '\033';
+				*output_buffer_loc++ = '#';
+				*output_buffer_loc++ = '6';
+			}
 			for (col = 0; col < tgl->width; col++) {
 				if (color != pixel->color) {
 					output_buffer_loc = itgl_generate_sgr(color, pixel->color, output_buffer_loc);
@@ -301,6 +307,8 @@ int tgl_flush(TGL *const tgl)
 		CALL_STDOUT(fputs(tgl->output_buffer, stdout), -1);
 	} else {
 		for (row = 0; row < tgl->height; row++) {
+			if (double_width)
+				CALL_STDOUT(fputs("\033#6", stdout), -1);
 			for (col = 0; col < tgl->width; col++) {
 				if (color != pixel->color) {
 					char buf[16];
@@ -683,10 +691,11 @@ int tgl_enable(TGL *const tgl, const uint8_t settings)
 		/* Longest SGR code: \033[22;24;XX;10Xm (length 15)
 		 * Maximum 17 chars per pixel: SGR + 2 x char
 		 * 1 Newline character per line
-		 * SGR clear code: \033[0m (length 4)
+		 * DECDWL code: \033#6 (length 3) per line
+		 * {SGR clear code: \033[0m } OR {SGR set cursor position code: \033[;H } (length 4) at start
 		 * 1 NUL terminator
 		 */
-		tgl->output_buffer_size = 17u * tgl->frame_size + tgl->height + 4u + 1u;
+		tgl->output_buffer_size = 17u * tgl->frame_size + tgl->height * 4u + 4u + 1u;
 		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
 		if (!tgl->output_buffer)
 			return -1;

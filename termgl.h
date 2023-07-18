@@ -56,6 +56,7 @@ enum {
 	TGL_OUTPUT_BUFFER = 0x02,
 	TGL_Z_BUFFER = 0x04,
 	/* settings */
+	TGL_DOUBLE_WIDTH = 0x08,
 	TGL_DOUBLE_CHARS = 0x10,
 	TGL_PROGRESSIVE = 0x20,
 #ifdef TERMGL3D
@@ -177,6 +178,7 @@ void tgl_clear_screen(void);
  * Enables or disables certain settings
  * @param settings: bitwise combination of settings:
  *   TGL_Z_BUFFER - depth buffer
+ *   TGL_DOUBLE_WIDTH - display characters at double their standard widths (Limited support from terminal emulators. Should work on Windows Terminal, XTerm, and Konsole)
  *   TGL_DOUBLE_CHARS - square pixels by printing 2 characters per pixel
  *   TGL_CULL_FACE - (3D ONLY) cull specified triangle faces
  *   TGL_OUTPUT_BUFFER - output buffer allowing for just one print to flush. Mush faster on most terminals, but requires a few hundred kilobytes of memory
