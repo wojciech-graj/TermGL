@@ -6,6 +6,14 @@
  * Full license information available in the project LICENSE file.
  **/
 
+// OS-specific imports used for sleep_ms
+#ifdef TGL_OS_WINDOWS
+#include <synchapi.h>
+#else
+#define _POSIX_C_SOURCE 199309L
+#include <time.h>
+#endif
+
 #include <assert.h>
 #include <math.h>
 #include <stdint.h>
@@ -14,15 +22,6 @@
 #include <string.h>
 
 #include "../termgl.h"
-
-// OS-specific imports used for sleep_ms
-#ifdef TGL_OS_WINDOWS
-#include <synchapi.h>
-#else
-#define __USE_POSIX199309
-#define _POSIX_C_SOURCE 199309L
-#include <time.h>
-#endif
 
 typedef struct STLTriangle {
 	float normal[3]; //normal is unreliable so it is not used.
