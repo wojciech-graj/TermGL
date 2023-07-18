@@ -763,6 +763,8 @@ int main(int argc, char **argv)
 	(void)argc;
 	(void)argv;
 
+	tglutil_set_window_title(HELPTEXT_HEADER);
+
 	tgl_clear_screen();
 	puts(HELPTEXT_HEADER);
 	unsigned col, row;

@@ -1210,4 +1210,12 @@ int tglutil_set_console_size(const unsigned col, const unsigned row)
 #endif
 }
 
+int tglutil_set_window_title(const char *title)
+{
+	CALL_STDOUT(fputs("\033]0;", stdout), -1);
+	CALL_STDOUT(fputs(title, stdout), -1);
+	CALL_STDOUT(fputs("\033\\", stdout), -1);
+	return 0;
+}
+
 #endif /* TERMGLUTIL */
