@@ -320,6 +320,13 @@ int tglutil_get_console_size(unsigned *col, unsigned *row, bool screen_buffer);
  */
 int tglutil_set_console_size(unsigned col, unsigned row);
 
+/**
+ * Attempts to set window title
+ * @return 0 on lack of errors, -1 on failure
+ * On failure, errno is set to value specified by: https://man7.org/linux/man-pages/man3/fputc.3p.html#ERRORS
+ */
+int tglutil_set_window_title(const char *title);
+
 #endif /* TERMGLUTIL */
 
 #ifdef __cplusplus
