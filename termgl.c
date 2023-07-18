@@ -1212,9 +1212,14 @@ int tglutil_set_console_size(const unsigned col, const unsigned row)
 
 int tglutil_set_window_title(const char *title)
 {
-	CALL_STDOUT(fputs("\033]0;", stdout), -1);
+	/* Allegedly Windows supports the \033]2;Pt\033\\ OSC sequence, but it does not work. */
+#ifdef __unix__
+	CALL_STDOUT(fputs("\033]2;", stdout), -1);
 	CALL_STDOUT(fputs(title, stdout), -1);
 	CALL_STDOUT(fputs("\033\\", stdout), -1);
+#else /* defined(TGL_OS_WINDOWS) */
+	WINDOWS_CALL(!SetConsoleTitle(title), -1);
+#endif
 	return 0;
 }
 
