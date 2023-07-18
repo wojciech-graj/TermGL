@@ -112,13 +112,13 @@ extern const TGLGradient gradient_full;
 extern const TGLGradient gradient_min;
 
 /**
- * Pixel shader that selects the char from a TGLGradient and has fixed color
+ * Pixel shader that maps u+v onto a TGLGradient and has fixed color
  * @param data (TGLPixelShaderSimple *)
  */
 void tgl_pixel_shader_simple(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
 
 /**
- * Pixel shader that maps u+v onto a TGLGradient
+ * Pixel shader that maps (u,v) onto a texture
  * @param data (TGLPixelShaderTexture *)
  */
 void tgl_pixel_shader_texture(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
