@@ -131,12 +131,20 @@ char tgl_grad_char(const TGLGradient *grad, uint8_t intensity);
 #endif /* ~TERMGL_MINIMAL */
 
 /**
+ * Initializes the terminal emulator.
+ * Must be called at the start of the program before any other TermGL functions
+ * @return: 0 on success, -1 on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX: CANNOT FAIL
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
+ */
+int tgl_boot(void);
+
+/**
  * Initializes a TGL struct which must be passed to all functions as context
  * @param gradient: pointer to a gradient struct which holds characters which will be used when rendering. TGLGradients provided by default are gradient_min and gradient_full
  * @return: pointer to a TGL struct, NULL on failure
- * On failure, errno is set to value specified by:
- *   UNIX and Windows: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
- *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
+ * On failure, errno is set to value specified by: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
  */
 TGL *tgl_init(unsigned width, unsigned height);
 
