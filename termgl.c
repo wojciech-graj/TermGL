@@ -783,7 +783,7 @@ typedef struct TGLUVTriangle {
 } TGLUVTriangle;
 
 static void itgl_clip_line(const float dot_i, const TGLVec4 vec_i, const uint8_t uv_i[2], const float dot_o, const TGLVec4 vec_o, const uint8_t uv_o[2], TGLVec4 vec_out, uint8_t uv_out[2]);
-static unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, TGLUVTriangle *in, TGLUVTriangle *out);
+static unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, const TGLUVTriangle *in, TGLUVTriangle *out);
 static float itgl_clip_plane_dot(const TGLVec4 v, const enum ClipPlane plane);
 
 #ifndef TERMGL_MINIMAL
@@ -959,7 +959,7 @@ float itgl_clip_plane_dot(const TGLVec4 v, const enum ClipPlane plane)
 	return 0;
 }
 
-unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, TGLUVTriangle *in, TGLUVTriangle *out)
+unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, const TGLUVTriangle *const in, TGLUVTriangle *const out)
 {
 	unsigned n_inside = 0, n_outside = 0;
 	unsigned inside[3], outside[3];
@@ -1104,7 +1104,7 @@ void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const
 	}
 }
 
-void tgl_cull_face(TGL *tgl, const uint8_t settings)
+void tgl_cull_face(TGL *const tgl, const uint8_t settings)
 {
 	tgl->settings = (tgl->settings & ~TGL_CULL_BIT) | (XOR(settings & TGL_CULL_FACE_BIT, settings & TGL_WINDING_BIT) ? TGL_CULL_BIT : 0);
 }
