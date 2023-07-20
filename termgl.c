@@ -1174,7 +1174,51 @@ void tgl_cull_face(TGL *const tgl, const uint8_t settings)
 #include <unistd.h>
 #endif
 
-TGL_SSIZE_T tglutil_read(char *const buf, const size_t count)
+#ifdef __unix__
+static inline uint8_t itgl_xterm_button_conv(uint8_t button);
+
+inline uint8_t itgl_xterm_button_conv(const uint8_t button)
+{
+	uint8_t mod = (button & 0x40) ? TGL_MOUSE_WHEEL_OR_MOVEMENT : 0x00;
+	switch ((button - 32) & 0x03) {
+	case 0x00:
+		return TGL_MOUSE_1 | mod;
+	case 0x01:
+		return TGL_MOUSE_3 | mod;
+	case 0x02:
+		return TGL_MOUSE_2 | mod;
+	case 0x03:
+		return TGL_MOUSE_RELEASE | mod;
+	}
+	TGL_UNREACHABLE();
+	return 0;
+}
+#endif /* __unix__ */
+
+#ifdef TGL_OS_WINDOWS
+static inline uint8_t itgl_windows_mouse_event_record_conv(MOUSE_EVENT_RECORD record, uint8_t *state);
+
+inline uint8_t itgl_windows_mouse_event_record_conv(const MOUSE_EVENT_RECORD record, uint8_t *const state)
+{
+	if (record.dwEventFlags & (MOUSE_WHEELED | 0x0008 | MOUSE_MOVED))
+		return TGL_MOUSE_WHEEL_OR_MOVEMENT | TGL_MOUSE_UNKNOWN;
+	const uint8_t changed = *state ^ record.dwButtonState;
+	if (changed & *state) {
+		*state = record.dwButtonState;
+		return TGL_MOUSE_RELEASE;
+	}
+	*state = record.dwButtonState;
+	if (changed & 0x01)
+		return TGL_MOUSE_1;
+	if (changed & 0x02)
+		return TGL_MOUSE_2;
+	if (changed & 0x04)
+		return TGL_MOUSE_3;
+	return TGL_MOUSE_WHEEL_OR_MOVEMENT | TGL_MOUSE_UNKNOWN;
+}
+#endif /* TGL_OS_WINDOWS */
+
+TGL_SSIZE_T tglutil_read(char *const buf, const size_t count, TGLMouseEvent *const event_buf, const size_t count_events, size_t *const count_read_events)
 {
 #ifdef __unix__
 	struct termios oldt, newt;
@@ -1193,7 +1237,32 @@ TGL_SSIZE_T tglutil_read(char *const buf, const size_t count)
 
 	/* Flush input buffer to prevent read of previous unread input */
 	CALL(tcflush(STDIN_FILENO, TCIFLUSH), -4);
+
+	if (!event_buf || retval <= 0)
+		return retval;
+
+	/* Parse mouse events */
+	*count_read_events = 0;
+	size_t rd, wr = 0;
+	for (rd = 0; rd < (size_t)retval; rd++) {
+		if (buf[rd] == '\033' && buf[rd + 1] == '[' && buf[rd + 2] == 'M') {
+			if (*count_read_events < count_events
+				&& ((buf[rd + 3] & 0x7f) == buf[rd + 3]))
+				event_buf[(*count_read_events)++] = (TGLMouseEvent){
+					.button = itgl_xterm_button_conv(buf[rd + 3]),
+					.x = buf[rd + 4] - 32,
+					.y = buf[rd + 5] - 32,
+				};
+			rd += 6;
+			continue;
+		}
+		buf[wr++] = buf[rd];
+	}
+
+	return wr;
 #else /* defined(TGL_OS_WINDOWS) */
+	static uint8_t mouse_state = 0x00;
+
 	const HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
 	WINDOWS_CALL(hInputHandle == INVALID_HANDLE_VALUE, -1);
 
@@ -1207,18 +1276,29 @@ TGL_SSIZE_T tglutil_read(char *const buf, const size_t count)
 	DWORD event_cnt;
 	WINDOWS_CALL(!GetNumberOfConsoleInputEvents(hInputHandle, &event_cnt), -1);
 
+	if (count_events)
+		*count_read_events = 0;
+
 	/* ReadConsole is blocking so must manually process events */
 	size_t retval = 0;
 	if (event_cnt) {
-		INPUT_RECORD input_records[32];
+		INPUT_RECORD input_records[128];
 		WINDOWS_CALL(!ReadConsoleInput(hInputHandle, input_records, 32, &event_cnt), -1);
 
 		DWORD i;
 		for (i = 0; i < event_cnt; i++) {
-			if (input_records[i].Event.KeyEvent.bKeyDown && input_records[i].EventType == KEY_EVENT) {
-				buf[retval++] = input_records[i].Event.KeyEvent.uChar.AsciiChar;
-				if (retval == count)
-					break;
+			switch (input_records[i].EventType) {
+			case KEY_EVENT:
+				if (input_records[i].Event.KeyEvent.bKeyDown && retval < count)
+					buf[retval++] = input_records[i].Event.KeyEvent.uChar.AsciiChar;
+				break;
+			case MOUSE_EVENT:
+				if (event_buf && *count_read_events < count_events)
+					event_buf[(*count_read_events)++] = (TGLMouseEvent){
+						.button = itgl_windows_mouse_event_record_conv(input_records[i].Event.MouseEvent, &mouse_state),
+						.x = input_records[i].Event.MouseEvent.dwMousePosition.X,
+						.y = input_records[i].Event.MouseEvent.dwMousePosition.Y,
+					};
 			}
 		}
 	}
@@ -1288,7 +1368,7 @@ int tglutil_set_echo_input(const bool enabled)
 #ifdef __unix__
 	struct termios t;
 	CALL(tcgetattr(STDIN_FILENO, &t), -1);
-	t.c_lflag &= (enabled) ? (ECHO) : ~(ECHO);
+	t.c_lflag = (enabled) ? (t.c_lflag | (ECHO)) : (t.c_lflag & ~(ECHO));
 	CALL(tcsetattr(STDIN_FILENO, TCSANOW, &t), -2);
 #else /* defined(TGL_OS_WINDOWS) */
 	const HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
@@ -1296,7 +1376,27 @@ int tglutil_set_echo_input(const bool enabled)
 
 	DWORD mode;
 	WINDOWS_CALL(!GetConsoleMode(hInputHandle, &mode), -1);
-	mode &= (enabled) ? (ENABLE_ECHO_INPUT) : ~(ENABLE_ECHO_INPUT);
+	mode = (enabled) ? (mode | (ENABLE_ECHO_INPUT)) : (mode & ~(ENABLE_ECHO_INPUT));
+	WINDOWS_CALL(!SetConsoleMode(hInputHandle, mode), -1);
+#endif
+	return 0;
+}
+
+int tglutil_set_mouse_tracking_enabled(const bool enabled)
+{
+#ifdef __unix__
+	if (enabled)
+		CALL_STDOUT(fputs("\033[?1003h", stdout), -1);
+	else
+		CALL_STDOUT(fputs("\033[?1003l", stdout), -1);
+	CALL_STDOUT(fflush(stdout), -2);
+#else /* defined(TGL_OS_WINDOWS) */
+	const HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
+	WINDOWS_CALL(hInputHandle == INVALID_HANDLE_VALUE, -1);
+
+	DWORD mode;
+	WINDOWS_CALL(!GetConsoleMode(hInputHandle, &mode), -1);
+	mode = (enabled) ? (mode | (ENABLE_MOUSE_INPUT)) : (mode & ~(ENABLE_MOUSE_INPUT));
 	WINDOWS_CALL(!SetConsoleMode(hInputHandle, mode), -1);
 #endif
 	return 0;
