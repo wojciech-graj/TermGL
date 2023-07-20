@@ -25,7 +25,6 @@ extern "C" {
 #endif
 
 enum /* indexed colors */ {
-	/* text colors */
 	TGL_BLACK = 0x00,
 	TGL_RED = 0x01,
 	TGL_GREEN = 0x02,
@@ -37,7 +36,7 @@ enum /* indexed colors */ {
 	TGL_HIGH_INTENSITY = 0x08,
 };
 
-enum /* TGLColor flags */ {
+enum /* TGLFmt flags */ {
 	TGL_NONE = 0x00,
 	TGL_RGB24 = 0x01,
 	/* only checked in fg */
@@ -96,10 +95,26 @@ typedef struct TGLPixFmt {
 	TGLFmt bkg;
 } TGLPixFmt;
 
+/**
+ * @param fg: TGLFmt
+ * @param [bkg]: TGLFmt
+ */
 #define TGL_PIXFMT(...) TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_PIXFMT2, TGL_PIXFMT1, UNUSED) \
 (__VA_ARGS__)
+
+/**
+ * @param color: uint8_t
+ * @param [flags]: uint8_t
+ */
 #define TGL_IDX(...) TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_IDX2, TGL_IDX1, UNUSED) \
 (__VA_ARGS__)
+
+/**
+ * @param r: uint8_t
+ * @param g: uint8_t
+ * @param b: uint8_t
+ * @param [flags]: uint8_t
+ */
 #define TGL_RGB(...) TGL_GET_MACRO4(__VA_ARGS__, TGL_RGB4, TGL_RGB3, _2, _1, UNUSED) \
 (__VA_ARGS__)
 

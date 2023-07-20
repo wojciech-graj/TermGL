@@ -103,7 +103,6 @@ struct TGL {
 #define RGB_EQ(rgb0, rgb1) (((rgb0).r == (rgb1).r) && ((rgb0).g == (rgb1).g) && ((rgb0).b == (rgb1).b))
 #define COLOR_EQ(color0, color1) (!(((color0).flags ^ (color1).flags) & TGL_RGB24) \
 	&& (((color0).flags & TGL_RGB24) ? (RGB_EQ((color0).color.rgb, (color1).color.rgb)) : ((color0).color.indexed == (color1).color.indexed)))
-
 #define PIXFMT_EQ(color0, color1) (COLOR_EQ((color0).fg, (color1).fg) && COLOR_EQ((color0).bkg, (color1).bkg))
 
 #ifndef TERMGL_MINIMAL
