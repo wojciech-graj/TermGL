@@ -742,14 +742,15 @@ int tgl_enable(TGL *const tgl, const uint8_t settings)
 		tgl_clear(tgl, TGL_Z_BUFFER);
 	}
 	if (enable & TGL_OUTPUT_BUFFER) {
-		/* Longest SGR code: \033[22;24;XX;10Xm (length 15)
-		 * Maximum 17 chars per pixel: SGR + 2 x char
+		/* Longest non-rgb SGR code: \033[22;24;XX;10Xm (length 15)
+		 * Longest rgb SGR code: \033[22;24;38;2;XXX;XXX;XXX;48;2;XXX;XXX;XXXm (length 42)
+		 * Maximum 44 chars per pixel: SGR + 2 x char
 		 * 1 Newline character per line
 		 * DECDWL code: \033#6 (length 3) per line
 		 * {SGR clear code: \033[0m } OR {SGR set cursor position code: \033[;H } (length 4) at start
 		 * 1 NUL terminator
 		 */
-		tgl->output_buffer_size = 17u * tgl->frame_size + tgl->height * 4u + 4u + 1u;
+		tgl->output_buffer_size = 44u * tgl->frame_size + tgl->height * 4u + 4u + 1u;
 		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
 		if (!tgl->output_buffer)
 			return -1;
