@@ -293,6 +293,8 @@ void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned fr
 	char *input_keys = calloc(bufsize, sizeof(char));
 	input_keys[0] = '\1';
 
+	assert(!tglutil_set_echo_input(false));
+
 	while (1) {
 		TGL_SSIZE_T chars_read = tglutil_read(input_keys, bufsize - 1u);
 		assert(chars_read >= 0);
@@ -313,6 +315,8 @@ void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned fr
 
 		sleep_ms(frametime_ms);
 	}
+
+	assert(!tglutil_set_echo_input(true));
 
 	tgl_delete(tgl);
 }
