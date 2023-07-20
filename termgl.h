@@ -24,7 +24,7 @@ extern "C" {
 #include <windef.h>
 #endif
 
-enum /* colors */ {
+enum /* indexed colors */ {
 	/* text colors */
 	TGL_BLACK = 0x00,
 	TGL_RED = 0x01,
@@ -34,20 +34,15 @@ enum /* colors */ {
 	TGL_PURPLE = 0x05,
 	TGL_CYAN = 0x06,
 	TGL_WHITE = 0x07,
-	/* highlight colors */
-	TGL_BLACK_BKG = 0x00,
-	TGL_RED_BKG = 0x10,
-	TGL_GREEN_BKG = 0x20,
-	TGL_YELLOW_BKG = 0x30,
-	TGL_BLUE_BKG = 0x40,
-	TGL_PURPLE_BKG = 0x50,
-	TGL_CYAN_BKG = 0x60,
-	TGL_WHITE_BKG = 0x70,
-	/* modifiers */
 	TGL_HIGH_INTENSITY = 0x08,
-	TGL_HIGH_INTENSITY_BKG = 0x80,
-	TGL_BOLD = 0x100, /* Often equivalent to TGL_HIGH_INTENSITY */
-	TGL_UNDERLINE = 0x200,
+};
+
+enum /* TGLColor flags */ {
+	TGL_NONE = 0x00,
+	TGL_RGB24 = 0x01,
+	/* only checked in fg */
+	TGL_BOLD = 0x10, /* Often equivalent to TGL_HIGH_INTENSITY */
+	TGL_UNDERLINE = 0x20,
 };
 
 enum {
@@ -72,11 +67,6 @@ enum {
 typedef struct TGL TGL;
 
 /**
- * Pixel shader that is called for each pixel in draw functions
- */
-typedef void TGLPixelShader(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
-
-/**
  * Vertex data passed into 2D drawing functions
  */
 typedef struct TGLVert {
@@ -86,6 +76,37 @@ typedef struct TGLVert {
 	uint8_t u; /**< u passed into TGLPixelShader */
 	uint8_t v; /**< v passed into TGLPixelShader */
 } TGLVert;
+
+typedef struct TGLRGB {
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+} TGLRGB;
+
+typedef struct TGLFmt {
+	uint8_t flags;
+	union {
+		TGLRGB rgb;
+		uint8_t indexed;
+	} color;
+} TGLFmt;
+
+typedef struct TGLPixFmt {
+	TGLFmt fg;
+	TGLFmt bkg;
+} TGLPixFmt;
+
+#define TGL_PIXFMT(...) TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_PIXFMT2, TGL_PIXFMT1, UNUSED) \
+(__VA_ARGS__)
+#define TGL_IDX(...) TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_IDX2, TGL_IDX1, UNUSED) \
+(__VA_ARGS__)
+#define TGL_RGB(...) TGL_GET_MACRO4(__VA_ARGS__, TGL_RGB4, TGL_RGB3, _2, _1, UNUSED) \
+(__VA_ARGS__)
+
+/**
+ * Pixel shader that is called for each pixel in draw functions
+ */
+typedef void TGLPixelShader(uint8_t u, uint8_t v, TGLPixFmt *color, char *c, const void *data);
 
 #ifndef TERMGL_MINIMAL
 
@@ -98,7 +119,7 @@ typedef struct TGLGradient {
 } TGLGradient;
 
 typedef struct TGLPixelShaderSimple {
-	uint16_t color;
+	TGLPixFmt color;
 	const TGLGradient *grad;
 } TGLPixelShaderSimple;
 
@@ -106,7 +127,7 @@ typedef struct TGLPixelShaderTexture {
 	uint8_t width;
 	uint8_t height;
 	const char *chars;
-	const uint16_t *colors;
+	const TGLPixFmt *colors;
 } TGLPixelShaderTexture;
 
 extern const TGLGradient gradient_full;
@@ -116,13 +137,13 @@ extern const TGLGradient gradient_min;
  * Pixel shader that maps u+v onto a TGLGradient and has fixed color
  * @param data (TGLPixelShaderSimple *)
  */
-void tgl_pixel_shader_simple(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
+void tgl_pixel_shader_simple(uint8_t u, uint8_t v, TGLPixFmt *color, char *c, const void *data);
 
 /**
  * Pixel shader that maps (u,v) onto a texture
  * @param data (TGLPixelShaderTexture *)
  */
-void tgl_pixel_shader_texture(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
+void tgl_pixel_shader_texture(uint8_t u, uint8_t v, TGLPixFmt *color, char *c, const void *data);
 
 /**
  * Gets a gradient's character corresponding to an intensity (i.e. u or v value)
@@ -192,8 +213,8 @@ void tgl_disable(TGL *tgl, uint8_t settings);
 /**
  * Printing functions similar to those provided by stdio.h
  */
-void tgl_putchar(TGL *tgl, int x, int y, char c, uint16_t color);
-void tgl_puts(TGL *tgl, int x, int y, const char *str, uint16_t color);
+void tgl_putchar(TGL *tgl, int x, int y, char c, TGLPixFmt color);
+void tgl_puts(TGL *tgl, int x, int y, const char *str, TGLPixFmt color);
 
 /**
  * Drawing functions
@@ -338,6 +359,36 @@ int tglutil_set_console_size(unsigned col, unsigned row);
 int tglutil_set_window_title(const char *title);
 
 #endif /* TERMGLUTIL */
+
+/**
+ * FOR INTERNAL USE ONLY
+ */
+#define TGL_GET_MACRO4(_1, _2, _3, _4, NAME, ...) NAME
+#define TGL_PIXFMT1(fg_) ((TGLPixFmt){ \
+	.fg = fg_,                     \
+	.bkg = { 0 },                  \
+})
+#define TGL_PIXFMT2(fg_, bkg_) ((TGLPixFmt){ \
+	.fg = fg_,                           \
+	.bkg = bkg_,                         \
+})
+#define TGL_IDX1(color_) ((TGLFmt){ \
+	.color.indexed = color_,    \
+})
+#define TGL_IDX2(color_, flags_) ((TGLFmt){ \
+	.flags = flags_,                    \
+	.color.indexed = color_,            \
+})
+#define TGL_RGB3(r_, g_, b_) ((TGLFmt){ .flags = TGL_RGB24, .color.rgb = (TGLRGB){ \
+								    .r = r_,       \
+								    .b = b_,       \
+								    .g = g_,       \
+							    } })
+#define TGL_RGB4(r_, g_, b_, flags_) ((TGLFmt){ .flags = (flags_) | TGL_RGB24, .color.rgb = (TGLRGB){ \
+										       .r = r_,       \
+										       .b = b_,       \
+										       .g = g_,       \
+									       } })
 
 #ifdef __cplusplus
 }

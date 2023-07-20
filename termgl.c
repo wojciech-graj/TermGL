@@ -41,7 +41,7 @@
 
 typedef struct Pixel {
 	char v_char;
-	uint16_t color;
+	TGLPixFmt color;
 } Pixel;
 
 struct TGL {
@@ -80,7 +80,7 @@ struct TGL {
 #define SET_PIXEL(tgl_, x_, y_, z_, u_, v_, t_, data_)                    \
 	do {                                                              \
 		char c_;                                                  \
-		uint16_t color_;                                          \
+		TGLPixFmt color_;                                         \
 		if (!tgl_->z_buffer_enabled) {                            \
 			t_(u_, v_, &color_, &c_, data_);                  \
 			SET_PIXEL_RAW(tgl_, x_, y_, c_, color_);          \
@@ -100,6 +100,12 @@ struct TGL {
 
 #define MIX(begin, end, d) ((begin) * (d) + (end) * (1 - (d)))
 
+#define RGB_EQ(rgb0, rgb1) (((rgb0).r == (rgb1).r) && ((rgb0).g == (rgb1).g) && ((rgb0).b == (rgb1).b))
+#define COLOR_EQ(color0, color1) (!(((color0).flags ^ (color1).flags) & TGL_RGB24) \
+	&& (((color0).flags & TGL_RGB24) ? (RGB_EQ((color0).color.rgb, (color1).color.rgb)) : ((color0).color.indexed == (color1).color.indexed)))
+
+#define PIXFMT_EQ(color0, color1) (COLOR_EQ((color0).fg, (color1).fg) && COLOR_EQ((color0).bkg, (color1).bkg))
+
 #ifndef TERMGL_MINIMAL
 const TGLGradient gradient_full = {
 	.length = 70,
@@ -113,11 +119,13 @@ const TGLGradient gradient_min = {
 #endif /* ~TERMGL_MINIMAL */
 
 static void itgl_clip(const TGL *tgl, int *x, int *y);
-static char *itgl_generate_sgr(uint16_t color_prev, uint16_t color_cur, char *buf);
+static inline char *itgl_generate_sgr_rgb_channel(const uint8_t val, char *buf);
+static char *itgl_generate_sgr_rgb(const TGLRGB rgb, char *buf);
+char *itgl_generate_sgr(const TGLPixFmt color_prev, const TGLPixFmt color_cur, char *buf);
 static void itgl_horiz_line(TGL *tgl, int x0, float z0, uint8_t u0, uint8_t v0, int x1, float z1, uint8_t u1, uint8_t v1, int y, TGLPixelShader *t, const void *data);
 
 #ifndef TERMGL_MINIMAL
-void tgl_pixel_shader_simple(const uint8_t u, const uint8_t v, uint16_t *const color, char *const c, const void *const data)
+void tgl_pixel_shader_simple(const uint8_t u, const uint8_t v, TGLPixFmt *const color, char *const c, const void *const data)
 {
 	const TGLPixelShaderSimple *const interp = data;
 	*color = interp->color;
@@ -125,7 +133,7 @@ void tgl_pixel_shader_simple(const uint8_t u, const uint8_t v, uint16_t *const c
 	(void)v;
 }
 
-void tgl_pixel_shader_texture(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data)
+void tgl_pixel_shader_texture(uint8_t u, uint8_t v, TGLPixFmt *const color, char *const c, const void *data)
 {
 	const TGLPixelShaderTexture *const shader = data;
 	const unsigned idx = u * shader->width / 256 + shader->width * (v * shader->height / 256);
@@ -171,7 +179,7 @@ void tgl_clear(TGL *const tgl, const uint8_t buffers)
 		for (i = 0; i < tgl->frame_size; i++) {
 			*(&tgl->frame_buffer[i]) = (Pixel){
 				.v_char = ' ',
-				.color = 0x0000,
+				.color = (TGLPixFmt){ 0 },
 			};
 		}
 	}
@@ -208,16 +216,39 @@ TGL *tgl_init(const unsigned width, const unsigned height)
 	return tgl;
 }
 
-char *itgl_generate_sgr(const uint16_t color_prev, const uint16_t color_cur, char *buf)
+inline char *itgl_generate_sgr_rgb_channel(const uint8_t val, char *buf)
 {
-	const uint16_t enable = color_cur & ~color_prev;
-	const uint16_t disable = color_prev & ~color_cur;
-	const uint16_t xor = color_cur ^ color_prev;
+	*buf++ = ';';
+	if (val >= 10) {
+		if (val >= 100)
+			*buf++ = (val / 100u) + '0';
+		*buf++ = ((val % 100u) / 10u) + '0';
+	}
+	*buf++ = (val % 10u) + '0';
+	return buf;
+}
+
+char *itgl_generate_sgr_rgb(const TGLRGB rgb, char *buf)
+{
+	*buf++ = '8';
+	*buf++ = ';';
+	*buf++ = '2';
+	buf = itgl_generate_sgr_rgb_channel(rgb.r, buf);
+	buf = itgl_generate_sgr_rgb_channel(rgb.g, buf);
+	buf = itgl_generate_sgr_rgb_channel(rgb.b, buf);
+	return buf;
+}
+
+char *itgl_generate_sgr(const TGLPixFmt color_prev, const TGLPixFmt color_cur, char *buf)
+{
+	const uint8_t enable = color_cur.fg.flags & ~color_prev.fg.flags;
+	const uint8_t disable = color_prev.fg.flags & ~color_cur.fg.flags;
 	bool flag_delim = false;
 
 	*buf++ = '\033';
 	*buf++ = '[';
 
+	/* BOLD */
 	if (disable & TGL_BOLD) {
 		*buf++ = '2';
 		*buf++ = '2';
@@ -227,6 +258,7 @@ char *itgl_generate_sgr(const uint16_t color_prev, const uint16_t color_cur, cha
 		flag_delim = true;
 	}
 
+	/* UNDERLINE */
 	if (disable & TGL_UNDERLINE) {
 		if (flag_delim)
 			*buf++ = ';';
@@ -242,26 +274,49 @@ char *itgl_generate_sgr(const uint16_t color_prev, const uint16_t color_cur, cha
 		*buf++ = '4';
 	}
 
-	if (xor&0x000F) {
+	/* FOREGROUND */
+	if (color_cur.fg.flags & TGL_RGB24) {
+		if (!RGB_EQ(color_cur.fg.color.rgb, color_prev.fg.color.rgb)) {
+			if (flag_delim)
+				*buf++ = ';';
+			else
+				flag_delim = true;
+			*buf++ = '3';
+			buf = itgl_generate_sgr_rgb(color_cur.fg.color.rgb, buf);
+		}
+	} else if ((color_prev.fg.flags & TGL_RGB24)
+		|| (color_prev.fg.color.indexed != color_cur.fg.color.indexed)) {
 		if (flag_delim)
 			*buf++ = ';';
 		else
 			flag_delim = true;
-		*buf++ = (color_cur & TGL_HIGH_INTENSITY) ? '9' : '3';
-		*buf++ = (color_cur & 0x0007) + 48;
+		*buf++ = (color_cur.fg.color.indexed & TGL_HIGH_INTENSITY) ? '9' : '3';
+		*buf++ = (color_cur.fg.color.indexed & 0x07) + '0';
 	}
 
-	if (xor&0x00F0) {
+	/* BACKGROUND */
+	if (color_cur.bkg.flags & TGL_RGB24) {
+		if (!RGB_EQ(color_cur.bkg.color.rgb, color_prev.bkg.color.rgb)) {
+			if (flag_delim)
+				*buf++ = ';';
+			*buf++ = '4';
+			buf = itgl_generate_sgr_rgb(color_cur.bkg.color.rgb, buf);
+		}
+	} else if ((color_prev.bkg.flags & TGL_RGB24)
+		|| (color_prev.bkg.color.indexed != color_cur.bkg.color.indexed)) {
 		if (flag_delim)
 			*buf++ = ';';
-		if (color_cur & TGL_HIGH_INTENSITY_BKG) {
+		else
+			flag_delim = true;
+		if (color_cur.bkg.color.indexed & TGL_HIGH_INTENSITY) {
 			*buf++ = '1';
 			*buf++ = '0';
 		} else {
 			*buf++ = '4';
 		}
-		*buf++ = ((color_cur & 0x0070) >> 4) + 48;
+		*buf++ = (color_cur.bkg.color.indexed & 0x07) + '0';
 	}
+
 	*buf++ = 'm';
 
 	return buf;
@@ -274,7 +329,7 @@ int tgl_flush(TGL *const tgl)
 	else
 		TGL_CLEAR_SCR;
 
-	uint16_t color = 0x0007;
+	TGLPixFmt color = TGL_PIXFMT(TGL_IDX(TGL_WHITE));
 	unsigned row, col;
 	Pixel *pixel = tgl->frame_buffer;
 	const bool double_chars = tgl->settings & TGL_DOUBLE_CHARS;
@@ -289,7 +344,7 @@ int tgl_flush(TGL *const tgl)
 				*output_buffer_loc++ = '6';
 			}
 			for (col = 0; col < tgl->width; col++) {
-				if (color != pixel->color) {
+				if (!PIXFMT_EQ(color, pixel->color)) {
 					output_buffer_loc = itgl_generate_sgr(color, pixel->color, output_buffer_loc);
 					color = pixel->color;
 				}
@@ -310,7 +365,7 @@ int tgl_flush(TGL *const tgl)
 			if (double_width)
 				CALL_STDOUT(fputs("\033#6", stdout), -1);
 			for (col = 0; col < tgl->width; col++) {
-				if (color != pixel->color) {
+				if (!PIXFMT_EQ(color, pixel->color)) {
 					char buf[16];
 					*itgl_generate_sgr(color, pixel->color, buf) = '\0';
 					color = pixel->color;
@@ -330,13 +385,13 @@ int tgl_flush(TGL *const tgl)
 	return 0;
 }
 
-void tgl_putchar(TGL *const tgl, int x, int y, const char c, const uint16_t color)
+void tgl_putchar(TGL *const tgl, int x, int y, const char c, const TGLPixFmt color)
 {
 	itgl_clip(tgl, &x, &y);
 	SET_PIXEL_RAW(tgl, x, y, c, color);
 }
 
-void tgl_puts(TGL *const tgl, const int x, int y, const char *str, const uint16_t color)
+void tgl_puts(TGL *const tgl, const int x, int y, const char *str, const TGLPixFmt color)
 {
 	int cur_x = x;
 	while (*str) {

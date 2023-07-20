@@ -50,7 +50,7 @@ Select a Demo:\n\
     Renders a texture-mapped cube.\
 ";
 
-static const uint16_t fg_colors[] = {
+static const uint8_t colors[] = {
 	TGL_BLACK,
 	TGL_RED,
 	TGL_GREEN,
@@ -60,18 +60,8 @@ static const uint16_t fg_colors[] = {
 	TGL_CYAN,
 	TGL_WHITE,
 };
-static const uint16_t bkg_colors[] = {
-	TGL_BLACK_BKG,
-	TGL_RED_BKG,
-	TGL_GREEN_BKG,
-	TGL_YELLOW_BKG,
-	TGL_BLUE_BKG,
-	TGL_PURPLE_BKG,
-	TGL_CYAN_BKG,
-	TGL_WHITE_BKG,
-};
 
-static void teapot_pixel_shader(uint8_t u, uint8_t v, uint16_t *color, char *c, const void *data);
+static void teapot_pixel_shader(uint8_t u, uint8_t v, TGLPixFmt *color, char *c, const void *data);
 static uint32_t stl_load(FILE *file, TGLTriangle **triangles);
 static void sleep_ms(const unsigned long ms);
 
@@ -82,7 +72,7 @@ static void demo_star(const unsigned res_x, const unsigned res_y, const unsigned
 static void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_texture(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 
-void teapot_pixel_shader(const uint8_t u, const uint8_t v, uint16_t *color, char *c, const void *const data)
+void teapot_pixel_shader(const uint8_t u, const uint8_t v, TGLPixFmt *color, char *c, const void *const data)
 {
 	const TGLVec3 light_direction = { 1.f, 0.f, 0.f };
 	const TGLVec3 *const in = (const TGLVec3 *)data;
@@ -96,7 +86,7 @@ void teapot_pixel_shader(const uint8_t u, const uint8_t v, uint16_t *color, char
 		light_mul = 0.15f;
 	else
 		light_mul = acosf(dp / (tgl_mag3(cp) * tgl_mag3(light_direction))) / -3.14159f + 1.f;
-	*color = TGL_WHITE | TGL_BOLD;
+	*color = TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD));
 	*c = tgl_grad_char(&gradient_min, light_mul * 255);
 	(void)u;
 	(void)v;
@@ -176,7 +166,11 @@ void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned 
 					i++;
 				}
 				if (i < i_max) // Set pixel with intensity dependent on i
-					tgl_putchar(tgl, pix_x, pix_y, tgl_grad_char(&gradient_full, i * 255u / i_max), TGL_WHITE | TGL_BOLD);
+					tgl_putchar(tgl,
+						pix_x,
+						pix_y,
+						tgl_grad_char(&gradient_full, i * 255u / i_max),
+						TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)));
 				x += dx;
 			}
 			y += dy;
@@ -300,15 +294,15 @@ void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned fr
 		TGL_SSIZE_T chars_read = tglutil_read(input_keys, bufsize - 1u);
 		assert(chars_read >= 0);
 		if (chars_read) {
-			tgl_puts(tgl, 0, 0, "Pressed keys:", TGL_WHITE);
-			tgl_puts(tgl, 14, 0, input_keys, TGL_WHITE);
+			tgl_puts(tgl, 0, 0, "Pressed keys:", TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
+			tgl_puts(tgl, 14, 0, input_keys, TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
 
 			assert(!tgl_flush(tgl));
 			tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_OUTPUT_BUFFER);
 		} else if (input_keys[0]) {
 			memset(input_keys, 0, bufsize);
 
-			tgl_puts(tgl, 0, 0, "Pressed keys: NONE", TGL_WHITE);
+			tgl_puts(tgl, 0, 0, "Pressed keys: NONE", TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
 
 			assert(!tgl_flush(tgl));
 			tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_OUTPUT_BUFFER);
@@ -345,11 +339,8 @@ void demo_star(const unsigned res_x, const unsigned res_y, const unsigned framet
 		unsigned y0 = half_res_y + half_res_y * sinf(angle0) * 0.9f;
 		unsigned y1 = half_res_y + half_res_y * sinf(angle1) * 0.9f;
 
-		uint16_t color = fg_colors[rand() % 8]
-			| bkg_colors[rand() % 8];
-
 		TGLPixelShaderSimple interp = {
-			.color = color,
+			.color = TGL_PIXFMT(TGL_IDX(colors[rand() % 8]), TGL_IDX(colors[rand() % 8])),
 			.grad = &gradient_min,
 		};
 		tgl_line(tgl, (TGLVert){
@@ -391,27 +382,27 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 
 	static const uint16_t modifiers[5][2] = {
 		{ 0, 0 },
-		{ TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG },
+		{ TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY },
 		{ TGL_BOLD, TGL_BOLD },
-		{ TGL_BOLD | TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY_BKG },
+		{ TGL_BOLD | TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY },
 		{ TGL_UNDERLINE, TGL_UNDERLINE },
 	};
 
-	tgl_puts(tgl, 9, 0, "NULL", TGL_WHITE);
-	tgl_puts(tgl, 9, 2, "TGL_HIGH_INTENSITY", TGL_WHITE);
-	tgl_puts(tgl, 9, 4, "TGL_BOLD", TGL_WHITE);
-	tgl_puts(tgl, 9, 6, "TGL_BOLD + TGL_HIGH_INTENSITY", TGL_WHITE);
-	tgl_puts(tgl, 9, 8, "TGL_UNDERLINE", TGL_WHITE);
+	tgl_puts(tgl, 9, 0, "NULL", TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
+	tgl_puts(tgl, 9, 2, "TGL_HIGH_INTENSITY", TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
+	tgl_puts(tgl, 9, 4, "TGL_BOLD", TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
+	tgl_puts(tgl, 9, 6, "TGL_BOLD + TGL_HIGH_INTENSITY", TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
+	tgl_puts(tgl, 9, 8, "TGL_UNDERLINE", TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
 
 	unsigned m, c;
 	for (m = 0; m < 5; m++) {
 		unsigned y_start = m * 2;
-		tgl_putchar(tgl, 0, y_start, 'K', TGL_BLACK | TGL_WHITE_BKG | modifiers[m][0]);
-		tgl_putchar(tgl, 0, y_start + 1, 'K', TGL_WHITE | TGL_BLACK_BKG | modifiers[m][1]);
+		for (c = 0; c < 2; c++)
+			tgl_putchar(tgl, 0, y_start + c, 'K', TGL_PIXFMT(TGL_IDX(TGL_BLACK, modifiers[m][c]), TGL_IDX(TGL_WHITE, modifiers[m][c])));
 		for (c = 1; c < 8; c++) {
 			char color = "KRGYBPCW"[c];
-			tgl_putchar(tgl, c, y_start, color, fg_colors[c] | TGL_BLACK_BKG | modifiers[m][0]);
-			tgl_putchar(tgl, c, y_start + 1, color, TGL_BLACK | bkg_colors[c] | modifiers[m][1]);
+			tgl_putchar(tgl, c, y_start, color, TGL_PIXFMT(TGL_IDX(colors[c], modifiers[m][0]), TGL_IDX(TGL_BLACK, modifiers[m][0])));
+			tgl_putchar(tgl, c, y_start + 1, color, TGL_PIXFMT(TGL_IDX(TGL_BLACK, modifiers[m][1]), TGL_IDX(colors[c], modifiers[m][1])));
 		}
 	}
 
@@ -691,43 +682,43 @@ static void demo_texture(const unsigned res_x, const unsigned res_y, const unsig
 # 5 6#\
 #7 8 #\
 ######",
-		.colors = (uint16_t[]){
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_RED | TGL_UNDERLINE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_GREEN,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_YELLOW,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_BLUE | TGL_UNDERLINE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_PURPLE | TGL_UNDERLINE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_CYAN,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_GREEN,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_RED | TGL_UNDERLINE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
-			TGL_BOLD | TGL_WHITE,
+		.colors = (TGLPixFmt[]){
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_RED, TGL_BOLD | TGL_UNDERLINE)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_GREEN, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_YELLOW, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_BLUE, TGL_BOLD | TGL_UNDERLINE)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_PURPLE, TGL_BOLD | TGL_UNDERLINE)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_CYAN, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_GREEN, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_RED, TGL_BOLD | TGL_UNDERLINE)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
+			TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)),
 		},
 	};
 
