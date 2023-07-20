@@ -336,8 +336,31 @@ void tgl_triangle_3d(TGL *tgl, const TGLTriangle in, const uint8_t (*uv)[2], boo
 #error "TermGLUtil is only supported on *NIX and Windows."
 #endif
 
+enum /* mouse button */ {
+	TGL_MOUSE_UNKNOWN = 0x01, /* Assume button state didn't change */
+	TGL_MOUSE_RELEASE = 0x02, /* At least 1 button released. It is unknown which one */
+	TGL_MOUSE_1 = 0x04, /* Left */
+	TGL_MOUSE_2 = 0x08, /* Right */
+	TGL_MOUSE_3 = 0x10, /* Middle */
+	TGL_MOUSE_WHEEL_OR_MOVEMENT = 0x20,
+};
+
+typedef struct TGLMouseEvent {
+	/**
+	 * ONE of TGL_MOUSE_UNKNOWN, TGL_MOUSE_RELEASE, TGL_MOUSE_(1/2/3)
+	 *   optionally OR'd with TGL_MOUSE_WHEEL_OR_MOVEMENT
+	 */
+	uint8_t button;
+	uint8_t x; /* Coordinates might have constant offset */
+	uint8_t y;
+} TGLMouseEvent;
+
 /**
- * Reads up to count bytes from raw terminal input into buf
+ * Reads up to count bytes from raw terminal input into buf and optionally reads count_events mouse events
+ * If mouse tracking is enabled but event_buf==NULL, buf may contain Xterm control sequences
+ * @param event_buf: Pass NULL if mouse tracking is disableda
+ * @param count_events: Length of event_buf
+ * @param count_read_events: Gets set to number of mouse events read
  * @return number of bytes read on success, negative value on failure
  * On failure, errno is set to value specified by:
  *   UNIX:
@@ -347,7 +370,7 @@ void tgl_triangle_3d(TGL *tgl, const TGLTriangle in, const uint8_t (*uv)[2], boo
  *     -4: https://www.man7.org/linux/man-pages/man3/tcflush.3p.html#ERRORS
  *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
-TGL_SSIZE_T tglutil_read(char *buf, size_t count);
+TGL_SSIZE_T tglutil_read(char *const buf, const size_t count, TGLMouseEvent *event_buf, size_t count_events, size_t *count_read_events);
 
 /**
  * Stores number of console columns and rows in *col and *row respectively
@@ -378,6 +401,7 @@ int tglutil_set_window_title(const char *title);
 
 /**
  * Sets if stdin input is displayed / echoed
+ * Set to false when using mouse tracking
  * @return 0 on success, negative value on failure
  * On failure, errno is set to value specified by:
  *   UNIX:
@@ -386,6 +410,18 @@ int tglutil_set_window_title(const char *title);
  *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
 int tglutil_set_echo_input(bool enabled);
+
+/**
+ * Sets if mouse is tracked
+ * It is recommended to call tglutil_set_echo_input(false) when using mouse tracking
+ * @return 0 on success, negative value on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX:
+ *     -1: https://www.man7.org/linux/man-pages/man3/fputc.3p.html#ERRORS
+ *     -2: https://www.man7.org/linux/man-pages/man3/fflush.3p.html#ERRORS
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
+ */
+int tglutil_set_mouse_tracking_enabled(bool enabled);
 
 #endif /* TERMGLUTIL */
 
