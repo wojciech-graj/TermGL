@@ -7,7 +7,8 @@ Features:
 - C99 compliant without external dependencies
 - Custom vertex and pixel shaders
 - Affine texture mapping
-- 16 Background colors, 16 foreground colors, bold and underline
+- 24 bit RGB
+- Indexed color mode: 16 Background colors, 16 foreground colors, bold and underline
 - Non-blocking input from terminal
 
 ### Gallery
@@ -72,3 +73,7 @@ Renders a texture-mapped cube.
 	- 3D rendering
 	- Shaders
 	- Texture mapping
+7. RGB\
+Renders overlapping red, green, and blue circles.
+	- 24 bit RGB
+	- Text rendering
