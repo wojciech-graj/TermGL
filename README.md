@@ -51,21 +51,17 @@ Renders a rotating 3D Utah Teapot.
 	- Double-width characters
 	- 3D rendering
 	- Custom shaders
-2. Star Polygon\
-Renders a star polygon in steps using random colors.
-	- Colors
-	- Line rendering
-3. Color Palette\
+2. Color Palette\
 Renders a palette of various text colors and styles.
 	- Colors & Modifiers
-4. Mandelbrot\
+3. Mandelbrot\
 Renders an infinitely zooming-in Mandelbrot set.
 	- Point rendering
-5. Realtime Keyboard\
+4. Realtime Keyboard\
 Displays keyboard input in realtime.
 	- Text rendering
 	- Realtime keyboard input
-6. Textured Cube\
+5. Textured Cube\
 Renders a texture-mapped cube.
 	- Backface culling
 	- Z buffering
@@ -73,7 +69,7 @@ Renders a texture-mapped cube.
 	- 3D rendering
 	- Shaders
 	- Texture mapping
-7. RGB\
+6. RGB\
 Renders overlapping red, green, and blue circles.
 	- 24 bit RGB
 	- Text rendering

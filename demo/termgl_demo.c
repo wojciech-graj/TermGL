@@ -40,17 +40,15 @@ static const char *HELPTEXT_BODY = "\
 Select a Demo:\n\
 1. Utah Teapot\n\
     Renders a rotating 3D Utah Teapot.\n\
-2. Star Polygon\n\
-    Renders a star polygon in steps using random colors.\n\
-3. Color Palette\n\
+2. Color Palette\n\
     Renders a palette of indexed text colors and styles.\n\
-4. Mandelbrot\n\
+3. Mandelbrot\n\
     Renders an infinitely zooming-in Mandelbrot set.\n\
-5. Realtime Keyboard\n\
+4. Realtime Keyboard\n\
     Displays keyboard input in realtime.\n\
-6. Textured Cube\n\
+5. Textured Cube\n\
     Renders a texture-mapped cube.\n\
-7. RGB\n\
+6. RGB\n\
     Renders overlapping red, green, and blue circles.\
 ";
 
@@ -73,7 +71,6 @@ static void sleep_ms(const unsigned long ms);
 static void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
-static void demo_star(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_texture(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_rgb(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
@@ -313,65 +310,6 @@ void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned fr
 			assert(!tgl_flush(tgl));
 			tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_OUTPUT_BUFFER);
 		}
-
-		sleep_ms(frametime_ms);
-	}
-
-	tgl_delete(tgl);
-}
-
-void demo_star(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
-{
-	TGL *tgl = tgl_init(res_x, res_y);
-	assert(tgl);
-	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER | TGL_PROGRESSIVE));
-
-	const float pi2 = 6.28319f;
-	const unsigned n = 8, d = 3;
-
-	unsigned half_res_x = res_x / 2u;
-	unsigned half_res_y = res_y / 2u;
-
-	unsigned vert = 0;
-
-	while (1) {
-		unsigned next_vert = (vert + d) % n;
-
-		float angle0 = pi2 * vert / n;
-		float angle1 = pi2 * next_vert / n;
-
-		unsigned x0 = half_res_x + half_res_x * cosf(angle0) * 0.9f;
-		unsigned x1 = half_res_x + half_res_x * cosf(angle1) * 0.9f;
-		unsigned y0 = half_res_y + half_res_y * sinf(angle0) * 0.9f;
-		unsigned y1 = half_res_y + half_res_y * sinf(angle1) * 0.9f;
-
-		TGLPixelShaderSimple interp = {
-			.color = TGL_PIXFMT(TGL_IDX(colors[rand() % 8]), TGL_IDX(colors[rand() % 8])),
-			.grad = &gradient_min,
-		};
-		tgl_line(tgl, (TGLVert){
-				      x0,
-				      y0,
-				      0,
-				      rand() % 256,
-				      0,
-			      },
-			(TGLVert){
-				x1,
-				y1,
-				0,
-				rand() % 256,
-				0,
-			},
-			&tgl_pixel_shader_simple, &interp);
-
-		assert(!tgl_flush(tgl));
-		// Buffer clear not yet required
-
-		vert = next_vert;
-
-		if (!vert)
-			tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_OUTPUT_BUFFER);
 
 		sleep_ms(frametime_ms);
 	}
@@ -815,21 +753,18 @@ int main(int argc, char **argv)
 		demo_teapot(40, 40, 33);
 		break;
 	case 2u:
-		demo_star(80, 40, 500);
-		break;
-	case 3u:
 		demo_color(40, 10, 0);
 		break;
-	case 4u:
+	case 3u:
 		demo_mandelbrot(80, 40, 33);
 		break;
-	case 5u:
+	case 4u:
 		demo_keyboard(80, 5, 200);
 		break;
-	case 6u:
+	case 5u:
 		demo_texture(40, 40, 33);
 		break;
-	case 7u:
+	case 6u:
 		demo_rgb(80, 24, 0);
 		break;
 	default:
