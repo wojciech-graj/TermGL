@@ -1171,6 +1171,7 @@ void tgl_cull_face(TGL *const tgl, const uint8_t settings)
 #ifdef __unix__
 #include <sys/ioctl.h>
 #include <termios.h>
+#include <unistd.h>
 #endif
 
 TGL_SSIZE_T tglutil_read(char *const buf, const size_t count)
@@ -1279,6 +1280,25 @@ int tglutil_set_window_title(const char *title)
 	CALL_STDOUT(fputs("\033]2;", stdout), -1);
 	CALL_STDOUT(fputs(title, stdout), -1);
 	CALL_STDOUT(fputs("\033\\", stdout), -1);
+	return 0;
+}
+
+int tglutil_set_echo_input(const bool enabled)
+{
+#ifdef __unix__
+	struct termios t;
+	CALL(tcgetattr(STDIN_FILENO, &t), -1);
+	t.c_lflag &= (enabled) ? (ECHO) : ~(ECHO);
+	CALL(tcsetattr(STDIN_FILENO, TCSANOW, &t), -2);
+#else /* defined(TGL_OS_WINDOWS) */
+	const HANDLE hInputHandle = GetStdHandle(STD_INPUT_HANDLE);
+	WINDOWS_CALL(hInputHandle == INVALID_HANDLE_VALUE, -1);
+
+	DWORD mode;
+	WINDOWS_CALL(!GetConsoleMode(hInputHandle, &mode), -1);
+	mode &= (enabled) ? (ENABLE_ECHO_INPUT) : ~(ENABLE_ECHO_INPUT);
+	WINDOWS_CALL(!SetConsoleMode(hInputHandle, mode), -1);
+#endif
 	return 0;
 }
 

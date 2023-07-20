@@ -99,15 +99,17 @@ typedef struct TGLPixFmt {
  * @param fg: TGLFmt
  * @param [bkg]: TGLFmt
  */
-#define TGL_PIXFMT(...) TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_PIXFMT2, TGL_PIXFMT1, UNUSED) \
-(__VA_ARGS__)
+#define TGL_PIXFMT(...)                                                       \
+	TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_PIXFMT2, TGL_PIXFMT1, UNUSED) \
+	(__VA_ARGS__)
 
 /**
  * @param color: uint8_t
  * @param [flags]: uint8_t
  */
-#define TGL_IDX(...) TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_IDX2, TGL_IDX1, UNUSED) \
-(__VA_ARGS__)
+#define TGL_IDX(...)                                                    \
+	TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_IDX2, TGL_IDX1, UNUSED) \
+	(__VA_ARGS__)
 
 /**
  * @param r: uint8_t
@@ -115,8 +117,9 @@ typedef struct TGLPixFmt {
  * @param b: uint8_t
  * @param [flags]: uint8_t
  */
-#define TGL_RGB(...) TGL_GET_MACRO4(__VA_ARGS__, TGL_RGB4, TGL_RGB3, _2, _1, UNUSED) \
-(__VA_ARGS__)
+#define TGL_RGB(...)                                                    \
+	TGL_GET_MACRO4(__VA_ARGS__, TGL_RGB4, TGL_RGB3, _2, _1, UNUSED) \
+	(__VA_ARGS__)
 
 /**
  * Pixel shader that is called for each pixel in draw functions
@@ -372,6 +375,17 @@ int tglutil_set_console_size(unsigned col, unsigned row);
  * On failure, errno is set to value specified by: https://man7.org/linux/man-pages/man3/fputc.3p.html#ERRORS
  */
 int tglutil_set_window_title(const char *title);
+
+/**
+ * Sets if stdin input is displayed / echoed
+ * @return 0 on success, negative value on failure
+ * On failure, errno is set to value specified by:
+ *   UNIX:
+ *     -1: https://www.man7.org/linux/man-pages/man3/tcgetattr.3p.html#ERRORS
+ *     -2: https://www.man7.org/linux/man-pages/man3/tcsetattr.3p.html#ERRORS
+ *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
+ */
+int tglutil_set_echo_input(bool enabled);
 
 #endif /* TERMGLUTIL */
 
