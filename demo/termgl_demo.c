@@ -49,7 +49,9 @@ Select a Demo:\n\
 5. Textured Cube\n\
     Renders a texture-mapped cube.\n\
 6. RGB\n\
-    Renders overlapping red, green, and blue circles.\
+    Renders overlapping red, green, and blue circles.\n\
+7. Mouse\n\
+    Displays mouse position and button state.\
 ";
 
 static const uint8_t colors[] = {
@@ -74,6 +76,7 @@ static void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsi
 static void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_texture(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_rgb(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
+static void demo_mouse(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 
 void teapot_pixel_shader(const uint8_t u, const uint8_t v, TGLPixFmt *color, char *c, const void *const data)
 {
@@ -296,7 +299,7 @@ void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned fr
 	assert(!tglutil_set_echo_input(false));
 
 	while (1) {
-		TGL_SSIZE_T chars_read = tglutil_read(input_keys, bufsize - 1u);
+		TGL_SSIZE_T chars_read = tglutil_read(input_keys, bufsize - 1u, NULL, 0, NULL);
 		assert(chars_read >= 0);
 		if (chars_read) {
 			tgl_puts(tgl, 0, 0, "Pressed keys:", TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
@@ -317,6 +320,8 @@ void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsigned fr
 	}
 
 	assert(!tglutil_set_echo_input(true));
+
+	free(input_keys);
 
 	tgl_delete(tgl);
 }
@@ -732,6 +737,71 @@ void demo_rgb(const unsigned res_x, const unsigned res_y, const unsigned frameti
 	getchar();
 }
 
+void demo_mouse(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
+{
+	TGL *tgl = tgl_init(res_x, res_y);
+	assert(tgl);
+	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
+
+	const size_t bufsize = 256;
+	const size_t count_mouse_events = 8;
+
+	char *input_keys = calloc(bufsize, sizeof(char));
+	TGLMouseEvent *mouse_events = calloc(count_mouse_events, sizeof(TGLMouseEvent));
+
+	assert(!tglutil_set_echo_input(false));
+	assert(!tglutil_set_mouse_tracking_enabled(true));
+
+	tgl_puts(tgl, 0, 0, "Move the mouse.", TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
+	assert(!tgl_flush(tgl));
+	tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_OUTPUT_BUFFER);
+
+	const char *action = "None";
+
+	while (1) {
+		size_t mouse_events_read = 0;
+		TGL_SSIZE_T chars_read = tglutil_read(input_keys, bufsize - 1u, mouse_events, count_mouse_events, &mouse_events_read);
+		assert(chars_read >= 0);
+
+		if (mouse_events_read) {
+			TGLMouseEvent e = mouse_events[mouse_events_read - 1];
+			char printf_buf[32];
+			snprintf(printf_buf, 32, "Mouse position: %02u, %02u", e.x, e.y);
+			tgl_puts(tgl, 0, 0, printf_buf, TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
+
+			size_t i;
+			for (i = mouse_events_read; i > 0; i--) {
+				e = mouse_events[i - 1];
+				if (e.button & TGL_MOUSE_UNKNOWN)
+					continue;
+				if (e.button & TGL_MOUSE_RELEASE)
+					action = "Release";
+				else if (e.button & TGL_MOUSE_1)
+					action = "Left Click";
+				else if (e.button & TGL_MOUSE_2)
+					action = "Right Click";
+				else if (e.button & TGL_MOUSE_3)
+					action = "Middle Click";
+			}
+			tgl_puts(tgl, 0, 1, "Latest action:", TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
+			tgl_puts(tgl, 15, 1, action, TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
+
+			assert(!tgl_flush(tgl));
+			tgl_clear(tgl, TGL_FRAME_BUFFER | TGL_OUTPUT_BUFFER);
+		}
+
+		sleep_ms(frametime_ms);
+	}
+
+	assert(!tglutil_set_mouse_tracking_enabled(false));
+	assert(!tglutil_set_echo_input(true));
+
+	free(input_keys);
+	free(mouse_events);
+
+	tgl_delete(tgl);
+}
+
 int main(int argc, char **argv)
 {
 	(void)argc;
@@ -770,6 +840,9 @@ int main(int argc, char **argv)
 		break;
 	case 6u:
 		demo_rgb(80, 24, 0);
+		break;
+	case 7u:
+		demo_mouse(80, 5, 33);
 		break;
 	default:
 		puts("Invalid Input.\n");
