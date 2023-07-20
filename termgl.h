@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #define TGL_VERSION_MAJOR 1
-#define TGL_VERSION_MINOR 3
+#define TGL_VERSION_MINOR 4
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -358,7 +358,8 @@ typedef struct TGLMouseEvent {
 /**
  * Reads up to count bytes from raw terminal input into buf and optionally reads count_events mouse events
  * If mouse tracking is enabled but event_buf==NULL, buf may contain Xterm control sequences
- * @param event_buf: Pass NULL if mouse tracking is disableda
+ * If mouse tracking is enabled, ensure sizeof(buf) >= count_events * 6
+ * @param event_buf: Pass NULL if mouse tracking is disabled
  * @param count_events: Length of event_buf
  * @param count_read_events: Gets set to number of mouse events read
  * @return number of bytes read on success, negative value on failure

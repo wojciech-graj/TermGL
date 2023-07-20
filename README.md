@@ -10,6 +10,7 @@ Features:
 - 24 bit RGB
 - Indexed color mode: 16 Background colors, 16 foreground colors, bold and underline
 - Non-blocking input from terminal
+- Mouse tracking
 
 ### Gallery
 
@@ -72,4 +73,8 @@ Renders a texture-mapped cube.
 6. RGB\
 Renders overlapping red, green, and blue circles.
 	- 24 bit RGB
+	- Text rendering
+7. Mouse\
+Displays mouse position and button state.
+	- Mouse tracking
 	- Text rendering
