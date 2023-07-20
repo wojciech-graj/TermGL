@@ -33,6 +33,8 @@ typedef struct STLTriangle {
 #define xstr(str_) str(str_)
 #define str(str_) #str_
 
+#define MIN(a_, b_) (((a_) < (b_)) ? (a_) : (b_))
+
 static const char *HELPTEXT_HEADER = "TermGL v" xstr(TGL_VERSION_MAJOR) "." xstr(TGL_VERSION_MINOR) " Demo Utility";
 static const char *HELPTEXT_BODY = "\
 Select a Demo:\n\
@@ -41,13 +43,15 @@ Select a Demo:\n\
 2. Star Polygon\n\
     Renders a star polygon in steps using random colors.\n\
 3. Color Palette\n\
-    Renders a palette of various text colors and styles.\n\
+    Renders a palette of indexed text colors and styles.\n\
 4. Mandelbrot\n\
     Renders an infinitely zooming-in Mandelbrot set.\n\
 5. Realtime Keyboard\n\
     Displays keyboard input in realtime.\n\
 6. Textured Cube\n\
-    Renders a texture-mapped cube.\
+    Renders a texture-mapped cube.\n\
+7. RGB\n\
+    Renders overlapping red, green, and blue circles.\
 ";
 
 static const uint8_t colors[] = {
@@ -63,6 +67,7 @@ static const uint8_t colors[] = {
 
 static void teapot_pixel_shader(uint8_t u, uint8_t v, TGLPixFmt *color, char *c, const void *data);
 static uint32_t stl_load(FILE *file, TGLTriangle **triangles);
+static uint8_t rgb_map_circle(const int dx, const int dy);
 static void sleep_ms(const unsigned long ms);
 
 static void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
@@ -71,6 +76,7 @@ static void demo_keyboard(const unsigned res_x, const unsigned res_y, const unsi
 static void demo_star(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 static void demo_texture(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
+static void demo_rgb(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms);
 
 void teapot_pixel_shader(const uint8_t u, const uint8_t v, TGLPixFmt *color, char *c, const void *const data)
 {
@@ -750,6 +756,40 @@ static void demo_texture(const unsigned res_x, const unsigned res_y, const unsig
 	tgl_delete(tgl);
 }
 
+uint8_t rgb_map_circle(const int dx, const int dy)
+{
+	return 255 - MIN(255, sqrtf(dx * dx * 4 + dy * dy) * 3.f);
+}
+
+void demo_rgb(const unsigned res_x, const unsigned res_y, const unsigned frametime_ms)
+{
+	(void)frametime_ms;
+	TGL *tgl = tgl_init(res_x, res_y);
+	assert(tgl);
+	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
+
+	unsigned x, y;
+	for (y = 0; y < 24; y++) {
+		for (x = 0; x < 80; x++) {
+			const int x_scld = x * 3;
+			const int y_scld = y * 10;
+			TGLFmt fmt = TGL_RGB(
+				rgb_map_circle(120 - x_scld, 100 - y_scld),
+				rgb_map_circle(100 - x_scld, 140 - y_scld),
+				rgb_map_circle(140 - x_scld, 140 - y_scld));
+			tgl_putchar(tgl, x, y, '.', TGL_PIXFMT(fmt, fmt));
+		}
+	}
+
+	assert(!tgl_flush(tgl));
+
+	tgl_delete(tgl);
+
+	/* Wait for user input */
+	getchar();
+	getchar();
+}
+
 int main(int argc, char **argv)
 {
 	(void)argc;
@@ -788,6 +828,9 @@ int main(int argc, char **argv)
 		break;
 	case 6u:
 		demo_texture(40, 40, 33);
+		break;
+	case 7u:
+		demo_rgb(80, 24, 0);
 		break;
 	default:
 		puts("Invalid Input.\n");
