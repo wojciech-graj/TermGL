@@ -1,7 +1,7 @@
 DEMO = termgl_demo
 SO = libtermgl.so
 HEADER = termgl.h
-DEMO_O = termgl.c demo/termgl_demo.c
+DEMO_SRC = termgl.c demo/termgl_demo.c
 CFLAGS += -Wall
 LDFLAGS += -lm
 
@@ -37,9 +37,11 @@ uninstall:
 	rm -f /usr/local/lib/$(SO) /usr/local/include/$(HEADER)
 
 .PHONY: demo
-demo: $(DEMO_O)
-	$(CC) $^ -o $@ $(LDFLAGS)
+demo: $(DEMO)
+
+$(DEMO): $(DEMO_SRC)
+	$(CC) $^ -o $@ $(CFLAGS) -DTERMGL3D -DTERMGLUTIL $(LDFLAGS)
 
 .PHONY: clean
 clean:
-	rm -f *.so *.o
+	rm -f *.so *.o *.obj
