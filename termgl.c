@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023 Wojciech Graj
+ * Copyright (c) 2021-2024 Wojciech Graj
  *
  * Licensed under the MIT license: https://opensource.org/licenses/MIT
  * Permission is granted to use, copy, modify, and redistribute the work.
@@ -17,19 +17,24 @@
 /**
  * Setting MACROs
  */
+#define TGL_MALLOC malloc
+#define TGL_FREE free
 #define TGL_CLEAR_SCR                              \
 	do {                                       \
 		fputs("\033[1;1H\033[2J", stdout); \
 	} while (0)
-#define TGL_TYPEOF __typeof__
-#define TGL_MALLOC malloc
-#define TGL_FREE free
+
+#ifdef __GNUC__
 #define TGL_LIKELY(x_) __builtin_expect((x_), 1)
 #define TGL_UNLIKELY(x_) __builtin_expect((x_), 0)
 #define TGL_UNREACHABLE() __builtin_unreachable()
+#else
+#define TGL_LIKELY(x_) (x_)
+#define TGL_UNLIKELY(x_) (x_)
+#define TGL_UNREACHABLE()
+#endif
 
 #ifdef TGL_OS_WINDOWS
-#include <windows.h>
 #define WINDOWS_CALL(cond_, retval_)            \
 	do {                                    \
 		if (TGL_UNLIKELY(cond_)) {      \
@@ -58,10 +63,9 @@ struct TGL {
 	uint8_t settings;
 };
 
-#define SWAP(a_, b_)           \
+#define SWAP(typ, a_, b_)   \
 	do {                   \
-		TGL_TYPEOF(a_) \
-		temp_ = a_;    \
+		typ temp_ = a_;    \
 		a_ = b_;       \
 		b_ = temp_;    \
 	} while (0)
@@ -420,7 +424,7 @@ void tgl_line(TGL *const tgl, TGLVert v0, TGLVert v1, TGLPixelShader *const t, c
 	itgl_clip(tgl, &v1.x, &v1.y);
 	if (abs(v1.y - v0.y) < abs(v1.x - v0.x)) {
 		if (v0.x > v1.x) {
-			SWAP(v1, v0);
+			SWAP(TGLVert, v1, v0);
 		}
 		const int dx = v1.x - v0.x;
 		int dy = v1.y - v0.y;
@@ -449,7 +453,7 @@ void tgl_line(TGL *const tgl, TGLVert v0, TGLVert v1, TGLPixelShader *const t, c
 		}
 	} else {
 		if (v0.y > v1.y) {
-			SWAP(v1, v0);
+			SWAP(TGLVert, v1, v0);
 		}
 		int dx = v1.x - v0.x;
 		const int dy = v1.y - v0.y;
@@ -512,13 +516,13 @@ void tgl_triangle_fill(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPi
 	itgl_clip(tgl, &v1.x, &v1.y);
 	itgl_clip(tgl, &v2.x, &v2.y);
 	if (v1.y < v0.y) {
-		SWAP(v1, v0);
+		SWAP(TGLVert, v1, v0);
 	}
 	if (v2.y < v0.y) {
-		SWAP(v2, v0);
+		SWAP(TGLVert, v2, v0);
 	}
 	if (v2.y < v1.y) {
-		SWAP(v1, v2);
+		SWAP(TGLVert, v1, v2);
 	}
 
 	int t0xp, t1xp, minx, maxx, t0x, t1x;
@@ -545,11 +549,11 @@ void tgl_triangle_fill(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPi
 	int dy1 = v2.y - v0.y;
 
 	if (dy0 > dx0) {
-		SWAP(dx0, dy0);
+		SWAP(int, dx0, dy0);
 		changed0 = true;
 	}
 	if (dy1 > dx1) {
-		SWAP(dx1, dy1);
+		SWAP(int, dx1, dy1);
 		changed1 = true;
 	}
 	int e1 = dx1 >> 1;
@@ -643,7 +647,7 @@ LBL_NEXT:
 	dy0 = v2.y - v1.y;
 	t0x = v1.x;
 	if (dy0 > dx0) {
-		SWAP(dy0, dx0);
+		SWAP(int, dy0, dx0);
 		changed0 = true;
 	} else {
 		changed0 = false;
@@ -842,32 +846,32 @@ static unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, const TGLUV
 static float itgl_clip_plane_dot(const TGLVec4 v, const enum ClipPlane plane);
 
 #ifndef TERMGL_MINIMAL
-__attribute__((const)) float tgl_sqr(const float val)
+float tgl_sqr(const float val)
 {
 	return val * val;
 }
 
-__attribute__((const)) float tgl_mag3(const float vec[3])
+float tgl_mag3(const float vec[3])
 {
 	return sqrtf(tgl_sqr(vec[0]) + tgl_sqr(vec[1]) + tgl_sqr(vec[2]));
 }
 
-__attribute__((const)) float tgl_magsqr3(const float vec[3])
+float tgl_magsqr3(const float vec[3])
 {
 	return tgl_sqr(vec[0]) + tgl_sqr(vec[1]) + tgl_sqr(vec[2]);
 }
 
-__attribute__((const)) float tgl_dot3(const float vec1[3], const float vec2[3])
+float tgl_dot3(const float vec1[3], const float vec2[3])
 {
 	return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2];
 }
 
-__attribute__((const)) float tgl_dot4(const float vec1[4], const float vec2[4])
+float tgl_dot4(const float vec1[4], const float vec2[4])
 {
 	return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2] + vec1[3] * vec2[3];
 }
 
-__attribute__((const)) float tgl_dot43(const float vec1[4], const float vec2[3])
+float tgl_dot43(const float vec1[4], const float vec2[3])
 {
 	return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2] + vec1[3];
 }

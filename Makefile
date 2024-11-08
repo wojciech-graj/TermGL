@@ -1,28 +1,45 @@
-TARGET_DEMO = termgl_demo
-TARGET_SO = libtermgl.so
-
-SRC = termgl.c
-SRC_DEMO = demo/termgl_demo.c
+DEMO = termgl_demo
+SO = libtermgl.so
 HEADER = termgl.h
-CFLAGS += -std=c99 -O3 -Wall -Wextra -Wpedantic
+DEMO_O = termgl.c demo/termgl_demo.c
+CFLAGS += -Wall
 LDFLAGS += -lm
 
-$(TARGET_SO): $(SRC)
-	$(CC) -c $^ -shared -o $@ $(CFLAGS) $(LDFLAGS) -fPIC -DTERMGL3D -DTERMGLUTIL
+ifeq ($(OS),Windows_NT)
+CC = cl
+else
+CFLAGS += -std=c99 -O3 -Wextra -Wpedantic
+endif
 
-clean:
-	rm -f $(TARGET_DEMO)
-	rm -f $(TARGET_SO)
+%.so: %.pic.o
+	$(CC) $^ -shared -o $@ $(LDFLAGS)
 
-shared: $(TARGET_SO)
+%.pic.o: %.c
+	$(CC) -c $^ -o $@ $(CFLAGS) -fPIC
 
-install: $(TARGET_SO) $(HEADER)
-	cp $(TARGET_SO) /usr/lib/$(TARGET_SO)
-	cp $(HEADER) /usr/include/$(HEADER)
+%.o: %.c
+	$(CC) -c $^ -o $@ $(CFLAGS)
 
+# MSVC
+%.obj: %.c
+	$(CC) -c $^ $(CFLAGS)
+
+.PHONY: shared
+shared: $(SO)
+
+.PHONY: install
+install: $(SO) $(HEADER)
+	cp $(SO) /usr/local/lib/$(SO)
+	cp $(HEADER) /usr/local/include/$(HEADER)
+
+.PHONY: uninstall
 uninstall:
-	rm -f /usr/lib/$(TARGET_SO)
-	rm -f /usr/include/$(HEADER)
+	rm -f /usr/local/lib/$(SO) /usr/local/include/$(HEADER)
 
-demo: $(SRC_DEMO) $(SRC)
-	$(CC) $^ -o $(TARGET_DEMO) $(CFLAGS) $(LDFLAGS) -DTERMGL3D -DTERMGLUTIL
+.PHONY: demo
+demo: $(DEMO_O)
+	$(CC) $^ -o $@ $(LDFLAGS)
+
+.PHONY: clean
+clean:
+	rm -f *.so *.o

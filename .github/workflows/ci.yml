@@ -1,0 +1,34 @@
+name: TermGL
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.os == 'windows-latest'
+      - name: Install Make on MacOS
+        if: matrix.os == 'macos-latest'
+        run: brew install make
+      - name: Install Make on Windows
+        if: matrix.os == 'windows-latest'
+        run: choco install make
+      - name: Compile
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            make shared CFLAGS="-DTERMGL3D -DTERMGLUTIL"
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            make shared CFLAGS="-DTERMGL3D"
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            make termgl.obj CFLAGS="-DTERMGL3D -DTERMGLUTIL"
+          fi
+        shell: bash

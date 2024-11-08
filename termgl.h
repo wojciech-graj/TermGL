@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023 Wojciech Graj
+ * Copyright (c) 2021-2024 Wojciech Graj
  *
  * Licensed under the MIT license: https://opensource.org/licenses/MIT
  * Permission is granted to use, copy, modify, and redistribute the work.
@@ -21,7 +21,8 @@ extern "C" {
 
 #if defined(_WIN32) || defined(WIN32)
 #define TGL_OS_WINDOWS
-#include <windef.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #endif
 
 enum /* indexed colors */ {
