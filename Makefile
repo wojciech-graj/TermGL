@@ -11,7 +11,7 @@ else
 CFLAGS += -std=c99 -O3 -Wextra -Wpedantic
 endif
 
-%.so: %.pic.o
+lib%.so: %.pic.o
 	$(CC) $^ -shared -o $@ $(LDFLAGS)
 
 %.pic.o: %.c
