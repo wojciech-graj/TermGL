@@ -14,11 +14,11 @@ Features:
 
 ### Gallery
 
-![LOGO](demo/logo.gif)
+![LOGO](https://w-graj.net/images/termgl/logo.gif)
 
-![CUBE](demo/textures.gif)
+![CUBE](https://w-graj.net/images/termgl/textures.gif)
 
-![CANYON](demo/canyon.gif)
+![CANYON](https://w-graj.net/images/termgl/canyon.gif)
 
 ### Build
 
