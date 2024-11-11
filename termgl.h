@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #define TGL_VERSION_MAJOR 1
-#define TGL_VERSION_MINOR 4
+#define TGL_VERSION_MINOR 5
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -83,12 +83,14 @@ typedef struct TGLRGB {
 	uint8_t b;
 } TGLRGB;
 
+typedef union TGLFmtColor {
+	TGLRGB rgb;
+	uint8_t indexed;
+} TGLFmtColor;
+
 typedef struct TGLFmt {
 	uint8_t flags;
-	union {
-		TGLRGB rgb;
-		uint8_t indexed;
-	} color;
+	union TGLFmtColor color;
 } TGLFmt;
 
 typedef struct TGLPixFmt {
@@ -274,7 +276,7 @@ typedef struct TGLVertexShaderSimple {
  * Vertex shader that outputs the input vertex multiplied by a matrix
  * @param data (TGLVertexShaderSimple *)
  */
-void tgl3d_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *data);
+void tgl_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *data);
 
 /**
  * Transformation matrix generation functions
@@ -284,15 +286,15 @@ void tgl_rotate(TGLMat rotate, float x, float y, float z);
 void tgl_scale(TGLMat scale, float x, float y, float z);
 void tgl_translate(TGLMat translate, float x, float y, float z);
 
-float tgl_sqr(const float val);
+float tgl_sqr(float val);
 float tgl_mag3(const float vec[3]);
 float tgl_magsqr3(const float vec[3]);
 float tgl_dot3(const float vec1[3], const float vec2[3]);
 float tgl_dot4(const float vec1[4], const float vec2[4]);
 float tgl_dot43(const float vec1[4], const float vec2[3]);
 
-void tgl_add3s(const float vec1[3], const float summand, float res[3]);
-void tgl_sub3s(const float vec1[3], const float subtrahend, float res[3]);
+void tgl_add3s(const float vec1[3], float summand, float res[3]);
+void tgl_sub3s(const float vec1[3], float subtrahend, float res[3]);
 
 void tgl_add3v(const float vec1[3], const float vec2[3], float res[3]);
 void tgl_mul3v(const float vec1[3], const float vec2[3], float res[3]);
@@ -305,7 +307,7 @@ void tgl_mulmat(const TGLMat mat1, const TGLMat mat2, TGLMat res);
 
 #endif /* ~TERMGL_MINIMAL */
 
-void tgl_mul3s(const float vec[3], const float mul, float res[3]);
+void tgl_mul3s(const float vec[3], float mul, float res[3]);
 void tgl_sub3v(const float vec1[3], const float vec2[3], float res[3]);
 void tgl_cross(const float vec1[3], const float vec2[3], float res[3]);
 
@@ -372,7 +374,7 @@ typedef struct TGLMouseEvent {
  *     -4: https://www.man7.org/linux/man-pages/man3/tcflush.3p.html#ERRORS
  *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
-TGL_SSIZE_T tglutil_read(char *const buf, const size_t count, TGLMouseEvent *event_buf, size_t count_events, size_t *count_read_events);
+TGL_SSIZE_T tglutil_read(char *buf, size_t count, TGLMouseEvent *event_buf, size_t count_events, size_t *count_read_events);
 
 /**
  * Stores number of console columns and rows in *col and *row respectively
@@ -432,29 +434,29 @@ int tglutil_set_mouse_tracking_enabled(bool enabled);
  */
 #define TGL_GET_MACRO4(_1, _2, _3, _4, NAME, ...) NAME
 #define TGL_PIXFMT1(fg_) ((TGLPixFmt){ \
-	.fg = fg_,                     \
+	.fg = (fg_),                   \
 	.bkg = { 0 },                  \
 })
 #define TGL_PIXFMT2(fg_, bkg_) ((TGLPixFmt){ \
-	.fg = fg_,                           \
-	.bkg = bkg_,                         \
+	.fg = (fg_),                         \
+	.bkg = (bkg_),                       \
 })
 #define TGL_IDX1(color_) ((TGLFmt){ \
-	.color.indexed = color_,    \
+	.color.indexed = (color_),  \
 })
 #define TGL_IDX2(color_, flags_) ((TGLFmt){ \
-	.flags = flags_,                    \
-	.color.indexed = color_,            \
+	.flags = (flags_),                  \
+	.color.indexed = (color_),          \
 })
 #define TGL_RGB3(r_, g_, b_) ((TGLFmt){ .flags = TGL_RGB24, .color.rgb = (TGLRGB){ \
-								    .r = r_,       \
-								    .b = b_,       \
-								    .g = g_,       \
+								    .r = (r_),     \
+								    .g = (g_),     \
+								    .b = (b_),     \
 							    } })
 #define TGL_RGB4(r_, g_, b_, flags_) ((TGLFmt){ .flags = (flags_) | TGL_RGB24, .color.rgb = (TGLRGB){ \
-										       .r = r_,       \
-										       .b = b_,       \
-										       .g = g_,       \
+										       .r = (r_),     \
+										       .g = (g_),     \
+										       .b = (b_),     \
 									       } })
 
 #ifdef __cplusplus

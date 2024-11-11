@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023 Wojciech Graj
+ * Copyright (c) 2021-2024 Wojciech Graj
  *
  * Licensed under the MIT license: https://opensource.org/licenses/MIT
  * Permission is granted to use, copy, modify, and redistribute the work.
@@ -169,7 +169,6 @@ void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned 
 					ix = next_ix;
 					ix2 = ix * ix;
 					iy2 = iy * iy;
-					i++;
 				}
 				if (i < i_max) // Set pixel with intensity dependent on i
 					tgl_putchar(tgl,
@@ -270,7 +269,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 			tgl_mulmat((const TGLVec4 *)camera, (const TGLVec4 *)to_view, vertex_shader_data.mat);
 
 			// Draw to framebuffer
-			tgl_triangle_3d(tgl, (const TGLVec3 *)trigs[i], uv, true, &tgl3d_vertex_shader_simple, &vertex_shader_data, &teapot_pixel_shader, &trigs[i]);
+			tgl_triangle_3d(tgl, (const TGLVec3 *)trigs[i], uv, true, &tgl_vertex_shader_simple, &vertex_shader_data, &teapot_pixel_shader, &trigs[i]);
 		}
 
 		assert(!tgl_flush(tgl));
@@ -333,12 +332,12 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 	assert(tgl);
 	assert(!tgl_enable(tgl, TGL_OUTPUT_BUFFER));
 
-	static const uint16_t modifiers[5][2] = {
+	static const uint8_t modifiers[5][2] = {
 		{ 0, 0 },
-		{ TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY },
-		{ TGL_BOLD, TGL_BOLD },
-		{ TGL_BOLD | TGL_HIGH_INTENSITY, TGL_HIGH_INTENSITY },
-		{ TGL_UNDERLINE, TGL_UNDERLINE },
+		{ TGL_HIGH_INTENSITY, 0 },
+		{ 0, TGL_BOLD },
+		{ TGL_HIGH_INTENSITY, TGL_BOLD },
+		{ 0, TGL_UNDERLINE },
 	};
 
 	tgl_puts(tgl, 9, 0, "NULL", TGL_PIXFMT(TGL_IDX(TGL_WHITE)));
@@ -350,12 +349,10 @@ void demo_color(const unsigned res_x, const unsigned res_y, const unsigned frame
 	unsigned m, c;
 	for (m = 0; m < 5; m++) {
 		unsigned y_start = m * 2;
-		for (c = 0; c < 2; c++)
-			tgl_putchar(tgl, 0, y_start + c, 'K', TGL_PIXFMT(TGL_IDX(TGL_BLACK, modifiers[m][c]), TGL_IDX(TGL_WHITE, modifiers[m][c])));
-		for (c = 1; c < 8; c++) {
+		for (c = 0; c < 8; c++) {
 			char color = "KRGYBPCW"[c];
-			tgl_putchar(tgl, c, y_start, color, TGL_PIXFMT(TGL_IDX(colors[c], modifiers[m][0]), TGL_IDX(TGL_BLACK, modifiers[m][0])));
-			tgl_putchar(tgl, c, y_start + 1, color, TGL_PIXFMT(TGL_IDX(TGL_BLACK, modifiers[m][1]), TGL_IDX(colors[c], modifiers[m][1])));
+			tgl_putchar(tgl, c, y_start, color, TGL_PIXFMT(TGL_IDX(colors[c] | modifiers[m][0], modifiers[m][1]), TGL_IDX(TGL_BLACK | modifiers[m][0], modifiers[m][1])));
+			tgl_putchar(tgl, c, y_start + 1, color, TGL_PIXFMT(TGL_IDX(TGL_BLACK | modifiers[m][0], modifiers[m][1]), TGL_IDX(colors[c] | modifiers[m][0], modifiers[m][1])));
 		}
 	}
 
@@ -689,7 +686,7 @@ static void demo_texture(const unsigned res_x, const unsigned res_y, const unsig
 		unsigned i;
 		for (i = 0; i < 12; i++) {
 			// Draw to framebuffer
-			tgl_triangle_3d(tgl, trigs[i], uvs[i % 2], true, &tgl3d_vertex_shader_simple, &vertex_shader_data, &tgl_pixel_shader_texture, &tex);
+			tgl_triangle_3d(tgl, trigs[i], uvs[i % 2], true, &tgl_vertex_shader_simple, &vertex_shader_data, &tgl_pixel_shader_texture, &tex);
 		}
 
 		assert(!tgl_flush(tgl));

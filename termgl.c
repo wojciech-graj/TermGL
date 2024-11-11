@@ -14,32 +14,29 @@
 #include <stdlib.h>
 #include <string.h>
 
-/**
- * Setting MACROs
- */
 #define TGL_MALLOC malloc
 #define TGL_FREE free
-#define TGL_CLEAR_SCR                              \
-	do {                                       \
-		fputs("\033[1;1H\033[2J", stdout); \
+#define TGL_CLEAR_SCR                                    \
+	do {                                             \
+		(void)fputs("\033[1;1H\033[2J", stdout); \
 	} while (0)
 
 #ifdef __GNUC__
-#define TGL_LIKELY(x_) __builtin_expect((x_), 1)
-#define TGL_UNLIKELY(x_) __builtin_expect((x_), 0)
+#define TGL_LIKELY(x) __builtin_expect((x), 1)
+#define TGL_UNLIKELY(x) __builtin_expect((x), 0)
 #define TGL_UNREACHABLE() __builtin_unreachable()
 #else
-#define TGL_LIKELY(x_) (x_)
-#define TGL_UNLIKELY(x_) (x_)
+#define TGL_LIKELY(x) (x)
+#define TGL_UNLIKELY(x) (x)
 #define TGL_UNREACHABLE()
 #endif
 
 #ifdef TGL_OS_WINDOWS
-#define WINDOWS_CALL(cond_, retval_)            \
+#define WINDOWS_CALL(cond, retval)              \
 	do {                                    \
-		if (TGL_UNLIKELY(cond_)) {      \
+		if (TGL_UNLIKELY(cond)) {       \
 			errno = GetLastError(); \
-			return retval_;         \
+			return retval;          \
 		}                               \
 	} while (0)
 #endif
@@ -63,44 +60,44 @@ struct TGL {
 	uint8_t settings;
 };
 
-#define SWAP(typ, a_, b_)   \
-	do {                   \
-		typ temp_ = a_;    \
-		a_ = b_;       \
-		b_ = temp_;    \
+#define SWAP(typ, a, b)                \
+	do {                           \
+		typ __swap_temp = (a); \
+		(a) = (b);             \
+		(b) = __swap_temp;     \
 	} while (0)
-#define MIN(a_, b_) (((a_) < (b_)) ? (a_) : (b_))
-#define MAX(a_, b_) (((a_) > (b_)) ? (a_) : (b_))
-#define XOR(a_, b_) (((bool)(a_)) != ((bool)(b_)))
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define XOR(a, b) (((bool)(a)) != ((bool)(b)))
 
-#define SET_PIXEL_RAW(tgl_, x_, y_, v_char_, color_)                     \
-	do {                                                             \
-		*(&tgl_->frame_buffer[y_ * tgl_->width + x_]) = (Pixel){ \
-			.v_char = v_char_,                               \
-			.color = color_,                                 \
-		};                                                       \
-	} while (0)
-
-#define SET_PIXEL(tgl_, x_, y_, z_, u_, v_, t_, data_)                    \
-	do {                                                              \
-		char c_;                                                  \
-		TGLPixFmt color_;                                         \
-		if (!tgl_->z_buffer_enabled) {                            \
-			t_(u_, v_, &color_, &c_, data_);                  \
-			SET_PIXEL_RAW(tgl_, x_, y_, c_, color_);          \
-		} else if (z_ >= tgl_->z_buffer[y_ * tgl_->width + x_]) { \
-			t_(u_, v_, &color_, &c_, data_);                  \
-			SET_PIXEL_RAW(tgl_, x_, y_, c_, color_);          \
-			tgl->z_buffer[y_ * tgl_->width + x_] = z_;        \
-		}                                                         \
+#define SET_PIXEL_RAW(tgl, x, y, v_char_, color_)                            \
+	do {                                                                 \
+		*(&(tgl)->frame_buffer[(y) * (tgl)->width + (x)]) = (Pixel){ \
+			.v_char = (v_char_),                                 \
+			.color = (color_),                                   \
+		};                                                           \
 	} while (0)
 
-#define CALL(stmt_, retval_)             \
-	do {                             \
-		if (TGL_UNLIKELY(stmt_)) \
-			return retval_;  \
+#define SET_PIXEL(tgl, x, y, z, u, v, t, data)                                      \
+	do {                                                                        \
+		char __set_pixel_c;                                                 \
+		TGLPixFmt __set_pixel_color;                                        \
+		if (!(tgl)->z_buffer_enabled) {                                     \
+			t(u, v, &__set_pixel_color, &__set_pixel_c, data);          \
+			SET_PIXEL_RAW(tgl, x, y, __set_pixel_c, __set_pixel_color); \
+		} else if ((z) >= (tgl)->z_buffer[(y) * (tgl)->width + (x)]) {      \
+			t(u, v, &__set_pixel_color, &__set_pixel_c, data);          \
+			SET_PIXEL_RAW(tgl, x, y, __set_pixel_c, __set_pixel_color); \
+			(tgl)->z_buffer[(y) * (tgl)->width + (x)] = z;              \
+		}                                                                   \
 	} while (0)
-#define CALL_STDOUT(stmt_, retval_) CALL((stmt_) == EOF, retval_)
+
+#define CALL(stmt, retval)              \
+	do {                            \
+		if (TGL_UNLIKELY(stmt)) \
+			return retval;  \
+	} while (0)
+#define CALL_STDOUT(stmt, retval) CALL((stmt) == EOF, retval)
 
 #define MIX(begin, end, d) ((begin) * (d) + (end) * (1 - (d)))
 
@@ -122,9 +119,9 @@ const TGLGradient gradient_min = {
 #endif /* ~TERMGL_MINIMAL */
 
 static void itgl_clip(const TGL *tgl, int *x, int *y);
-static inline char *itgl_generate_sgr_rgb_channel(const uint8_t val, char *buf);
-static char *itgl_generate_sgr_rgb(const TGLRGB rgb, char *buf);
-char *itgl_generate_sgr(const TGLPixFmt color_prev, const TGLPixFmt color_cur, char *buf);
+static inline char *itgl_generate_sgr_rgb_channel(uint8_t val, char *buf);
+static char *itgl_generate_sgr_rgb(TGLRGB rgb, char *buf);
+static char *itgl_generate_sgr(TGLPixFmt color_prev, TGLPixFmt color_cur, char *buf);
 static void itgl_horiz_line(TGL *tgl, int x0, float z0, uint8_t u0, uint8_t v0, int x1, float z1, uint8_t u1, uint8_t v1, int y, TGLPixelShader *t, const void *data);
 
 #ifndef TERMGL_MINIMAL
@@ -309,8 +306,8 @@ char *itgl_generate_sgr(const TGLPixFmt color_prev, const TGLPixFmt color_cur, c
 		|| (color_prev.bkg.color.indexed != color_cur.bkg.color.indexed)) {
 		if (flag_delim)
 			*buf++ = ';';
-		else
-			flag_delim = true;
+		/* else
+			flag_delim = true; */
 		if (color_cur.bkg.color.indexed & TGL_HIGH_INTENSITY) {
 			*buf++ = '1';
 			*buf++ = '0';
@@ -583,8 +580,7 @@ void tgl_triangle_fill(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPi
 			}
 			if (changed0)
 				break;
-			else
-				t0x += signx0;
+			t0x += signx0;
 		}
 		/* Move line */
 	LBL_NEXT1:
@@ -600,8 +596,7 @@ void tgl_triangle_fill(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPi
 			}
 			if (changed1)
 				break;
-			else
-				t1x += signx1;
+			t1x += signx1;
 		}
 	LBL_NEXT2:
 		if (minx > t0x)
@@ -670,14 +665,12 @@ LBL_NEXT:
 				if (changed0) {
 					t0xp = signx0;
 					break;
-				} else {
-					goto LBL_NEXT3;
 				}
+				goto LBL_NEXT3;
 			}
 			if (changed0)
 				break;
-			else
-				t0x += signx0;
+			t0x += signx0;
 			if (i < dx0)
 				i++;
 		}
@@ -693,8 +686,7 @@ LBL_NEXT:
 			}
 			if (changed1)
 				break;
-			else
-				t1x += signx1;
+			t1x += signx1;
 		}
 	LBL_NEXT4:
 		if (minx > t0x)
@@ -793,38 +785,38 @@ void tgl_delete(TGL *const tgl)
 #define TGL_CULL_FACE_BIT 0x01
 #define TGL_WINDING_BIT 0x02
 
-#define MAP_COORD(half_, val_) ((val_ * half_) + half_)
+#define MAP_COORD(half, val) (((val) * (half)) + (half))
 
-#define TGL_ROTATION_MATRIX(x_, y_, z_)                                                                                                                            \
-	{                                                                                                                                                          \
-		{ cosf(z_) * cosf(y_), -sinf(z_) * cosf(x_) + cosf(z_) * sinf(y_) * sinf(x_), sinf(z_) * sinf(x_) + cosf(z_) * sinf(y_) * cosf(x_), 0.f },         \
-			{ sinf(z_) * cosf(y_), cosf(z_) * cosf(x_) + sinf(z_) * sinf(y_) * sinf(x_), -cosf(z_) * sinf(x_) + sinf(z_) * sinf(y_) * cosf(x_), 0.f }, \
-			{ -sinf(y_), cosf(y_) * sinf(x_), cosf(y_) * cosf(x_), 0.f },                                                                              \
-			{ 0.f, 0.f, 0.f, 1.f },                                                                                                                    \
+#define TGL_ROTATION_MATRIX(x, y, z)                                                                                                                   \
+	{                                                                                                                                              \
+		{ cosf(z) * cosf(y), -sinf(z) * cosf(x) + cosf(z) * sinf(y) * sinf(x), sinf(z) * sinf(x) + cosf(z) * sinf(y) * cosf(x), 0.f },         \
+			{ sinf(z) * cosf(y), cosf(z) * cosf(x) + sinf(z) * sinf(y) * sinf(x), -cosf(z) * sinf(x) + sinf(z) * sinf(y) * cosf(x), 0.f }, \
+			{ -sinf(y), cosf(y) * sinf(x), cosf(y) * cosf(x), 0.f },                                                                       \
+			{ 0.f, 0.f, 0.f, 1.f },                                                                                                        \
 	}
 
-#define TGL_SCALE_MATRIX(x_, y_, z_)            \
+#define TGL_SCALE_MATRIX(x, y, z)               \
 	{                                       \
-		{ x_, 0.f, 0.f, 0.f },          \
-			{ 0.f, y_, 0.f, 0.f },  \
-			{ 0.f, 0.f, z_, 0.f },  \
+		{ x, 0.f, 0.f, 0.f },           \
+			{ 0.f, y, 0.f, 0.f },   \
+			{ 0.f, 0.f, z, 0.f },   \
 			{ 0.f, 0.f, 0.f, 1.f }, \
 	}
 
-#define TGL_TRANSLATE_MATRIX(x_, y_, z_)        \
+#define TGL_TRANSLATE_MATRIX(x, y, z)           \
 	{                                       \
-		{ 1.f, 0.f, 0.f, x_ },          \
-			{ 0.f, 1.f, 0.f, y_ },  \
-			{ 0.f, 0.f, 1.f, z_ },  \
+		{ 1.f, 0.f, 0.f, x },           \
+			{ 0.f, 1.f, 0.f, y },   \
+			{ 0.f, 0.f, 1.f, z },   \
 			{ 0.f, 0.f, 0.f, 1.f }, \
 	}
 
-#define TGL_CAMERA_MATRIX(width, height, fov, near_val, far_val)                                                                     \
-	{                                                                                                                            \
-		{ height / (float)width / tanf(fov * .5f), 0.f, 0.f, 0.f },                                                          \
-			{ 0.f, 1.f / tanf(fov * .5f), 0.f, 0.f },                                                                    \
-			{ 0.f, 0.f, -(far_val + near_val) / (far_val - near_val), 2.f * far_val * near_val / (far_val - near_val) }, \
-			{ 0.f, 0.f, 1.f, 0.f },                                                                                      \
+#define TGL_CAMERA_MATRIX(width, height, fov, near_val, far_val)                                                                                     \
+	{                                                                                                                                            \
+		{ (height) / (float)(width) / tanf((fov)*.5f), 0.f, 0.f, 0.f },                                                                      \
+			{ 0.f, 1.f / tanf((fov)*.5f), 0.f, 0.f },                                                                                    \
+			{ 0.f, 0.f, -((far_val) + (near_val)) / ((far_val) - (near_val)), 2.f * (far_val) * (near_val) / ((far_val) - (near_val)) }, \
+			{ 0.f, 0.f, 1.f, 0.f },                                                                                                      \
 	}
 
 enum ClipPlane {
@@ -841,9 +833,9 @@ typedef struct TGLUVTriangle {
 	uint8_t uv[3][2];
 } TGLUVTriangle;
 
-static void itgl_clip_line(const float dot_i, const TGLVec4 vec_i, const uint8_t uv_i[2], const float dot_o, const TGLVec4 vec_o, const uint8_t uv_o[2], TGLVec4 vec_out, uint8_t uv_out[2]);
-static unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, const TGLUVTriangle *in, TGLUVTriangle *out);
-static float itgl_clip_plane_dot(const TGLVec4 v, const enum ClipPlane plane);
+static void itgl_clip_line(float dot_i, const TGLVec4 vec_i, const uint8_t uv_i[2], float dot_o, const TGLVec4 vec_o, const uint8_t uv_o[2], TGLVec4 vec_out, uint8_t uv_out[2]);
+static unsigned itgl_clip_triangle_plane(enum ClipPlane plane, const TGLUVTriangle *in, TGLUVTriangle *out);
+static float itgl_clip_plane_dot(const TGLVec4 v, enum ClipPlane plane);
 
 #ifndef TERMGL_MINIMAL
 float tgl_sqr(const float val)
@@ -935,7 +927,7 @@ void tgl_mulmat(const TGLMat mat1, const TGLMat mat2, TGLMat res)
 		}
 }
 
-void tgl3d_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *const data)
+void tgl_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *const data)
 {
 	const TGLVertexShaderSimple *simple = data;
 	tgl_mulmatvec(simple->mat, vert, out);
@@ -1013,9 +1005,10 @@ float itgl_clip_plane_dot(const TGLVec4 v, const enum ClipPlane plane)
 		return v[2] + v[3];
 	case CLIP_FAR:
 		return -v[2] + v[3];
+	default:
+		TGL_UNREACHABLE();
+		return 0;
 	}
-	TGL_UNREACHABLE();
-	return 0;
 }
 
 unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, const TGLUVTriangle *const in, TGLUVTriangle *const out)
@@ -1058,9 +1051,10 @@ unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, const TGLUVTriangl
 	case 3:
 		memcpy(&out[0], in, sizeof(TGLUVTriangle));
 		return 1;
+	default:
+		TGL_UNREACHABLE();
+		return 0;
 	}
-	TGL_UNREACHABLE();
-	return 0;
 }
 
 void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const uv)[2], const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLPixelShader *frag_shader, const void *const frag_data)
@@ -1183,7 +1177,7 @@ static inline uint8_t itgl_xterm_button_conv(uint8_t button);
 
 inline uint8_t itgl_xterm_button_conv(const uint8_t button)
 {
-	uint8_t mod = (button & 0x40) ? TGL_MOUSE_WHEEL_OR_MOVEMENT : 0x00;
+	const uint8_t mod = (button & 0x40) ? TGL_MOUSE_WHEEL_OR_MOVEMENT : 0x00;
 	switch ((button - 32) & 0x03) {
 	case 0x00:
 		return TGL_MOUSE_1 | mod;
