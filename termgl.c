@@ -1251,7 +1251,7 @@ TGL_SSIZE_T tglutil_read(char *const buf, const size_t count, TGLMouseEvent *con
 					.x = buf[rd + 4] - 32,
 					.y = buf[rd + 5] - 32,
 				};
-			rd += 6;
+			rd += 5;
 			continue;
 		}
 		buf[wr++] = buf[rd];

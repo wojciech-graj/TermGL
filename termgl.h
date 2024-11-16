@@ -208,6 +208,7 @@ int tgl_flush(TGL *tgl);
  * @param buffers: bitwise combination of buffers:
  *   TGL_FRAME_BUFFER - frame buffer
  *   TGL_Z_BUFFER - depth buffer
+ *   TGL_OUTPUT_BUFFER - output buffer
  */
 void tgl_clear(TGL *tgl, uint8_t buffers);
 
@@ -223,7 +224,7 @@ void tgl_clear_screen(void);
  *   TGL_DOUBLE_WIDTH - display characters at double their standard widths (Limited support from terminal emulators. Should work on Windows Terminal, XTerm, and Konsole)
  *   TGL_DOUBLE_CHARS - square pixels by printing 2 characters per pixel
  *   TGL_CULL_FACE - (3D ONLY) cull specified triangle faces
- *   TGL_OUTPUT_BUFFER - output buffer allowing for just one print to flush. Mush faster on most terminals, but requires a few hundred kilobytes of memory
+ *   TGL_OUTPUT_BUFFER - output buffer allowing for just one print to flush. Much faster on most terminals, but requires a few hundred kilobytes of memory
  *   TGL_PROGRESSIVE - Over-write previous frame. Eliminates strobing but requires call to tgl_clear_screen before drawing smaller image and after resizing terminal if terminal size was smaller than frame size
  * @return 0 on success, -1 on failure
  * On failure, errno is set to value specified by: https://www.man7.org/linux/man-pages/man3/malloc.3.html#ERRORS
