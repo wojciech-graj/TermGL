@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024 Wojciech Graj
+ * Copyright (c) 2021-2025 Wojciech Graj
  *
  * Licensed under the MIT license: https://opensource.org/licenses/MIT
  * Permission is granted to use, copy, modify, and redistribute the work.
@@ -102,16 +102,16 @@ typedef struct TGLPixFmt {
  * @param fg: TGLFmt
  * @param [bkg]: TGLFmt
  */
-#define TGL_PIXFMT(...)                                                       \
-	TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_PIXFMT2, TGL_PIXFMT1, UNUSED) \
+#define TGL_PIXFMT(...)                                                                            \
+	TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_PIXFMT2, TGL_PIXFMT1, UNUSED)                      \
 	(__VA_ARGS__)
 
 /**
  * @param color: uint8_t
  * @param [flags]: uint8_t
  */
-#define TGL_IDX(...)                                                    \
-	TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_IDX2, TGL_IDX1, UNUSED) \
+#define TGL_IDX(...)                                                                               \
+	TGL_GET_MACRO4(__VA_ARGS__, _4, _3, TGL_IDX2, TGL_IDX1, UNUSED)                            \
 	(__VA_ARGS__)
 
 /**
@@ -120,8 +120,8 @@ typedef struct TGLPixFmt {
  * @param b: uint8_t
  * @param [flags]: uint8_t
  */
-#define TGL_RGB(...)                                                    \
-	TGL_GET_MACRO4(__VA_ARGS__, TGL_RGB4, TGL_RGB3, _2, _1, UNUSED) \
+#define TGL_RGB(...)                                                                               \
+	TGL_GET_MACRO4(__VA_ARGS__, TGL_RGB4, TGL_RGB3, _2, _1, UNUSED)                            \
 	(__VA_ARGS__)
 
 /**
@@ -243,8 +243,10 @@ void tgl_puts(TGL *tgl, int x, int y, const char *str, TGLPixFmt color);
  */
 void tgl_point(TGL *tgl, TGLVert v0, TGLPixelShader *t, const void *data);
 void tgl_line(TGL *tgl, TGLVert v0, TGLVert v1, TGLPixelShader *t, const void *data);
-void tgl_triangle(TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *t, const void *data);
-void tgl_triangle_fill(TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *t, const void *data);
+void tgl_triangle(
+	TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *t, const void *data);
+void tgl_triangle_fill(
+	TGL *tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *t, const void *data);
 
 #ifdef TERMGL3D
 
@@ -323,7 +325,9 @@ void tgl_cull_face(TGL *tgl, uint8_t settings);
 /**
  * Renders triangle onto framebuffer
  */
-void tgl_triangle_3d(TGL *tgl, const TGLTriangle in, const uint8_t (*uv)[2], bool fill, TGLVertexShader *vert_shader, const void *vert_data, TGLPixelShader *frag_shader, const void *frag_data);
+void tgl_triangle_3d(TGL *tgl, const TGLTriangle in, const uint8_t (*uv)[2], bool fill,
+	TGLVertexShader *vert_shader, const void *vert_data, TGLPixelShader *frag_shader,
+	const void *frag_data);
 
 #endif /* TERMGL3D */
 
@@ -375,7 +379,8 @@ typedef struct TGLMouseEvent {
  *     -4: https://www.man7.org/linux/man-pages/man3/tcflush.3p.html#ERRORS
  *   Windows: https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
  */
-TGL_SSIZE_T tglutil_read(char *buf, size_t count, TGLMouseEvent *event_buf, size_t count_events, size_t *count_read_events);
+TGL_SSIZE_T tglutil_read(char *buf, size_t count, TGLMouseEvent *event_buf, size_t count_events,
+	size_t *count_read_events);
 
 /**
  * Stores number of console columns and rows in *col and *row respectively
@@ -434,31 +439,39 @@ int tglutil_set_mouse_tracking_enabled(bool enabled);
  * FOR INTERNAL USE ONLY
  */
 #define TGL_GET_MACRO4(_1, _2, _3, _4, NAME, ...) NAME
-#define TGL_PIXFMT1(fg_) ((TGLPixFmt){ \
-	.fg = (fg_),                   \
-	.bkg = { 0 },                  \
-})
-#define TGL_PIXFMT2(fg_, bkg_) ((TGLPixFmt){ \
-	.fg = (fg_),                         \
-	.bkg = (bkg_),                       \
-})
-#define TGL_IDX1(color_) ((TGLFmt){ \
-	.color.indexed = (color_),  \
-})
-#define TGL_IDX2(color_, flags_) ((TGLFmt){ \
-	.flags = (flags_),                  \
-	.color.indexed = (color_),          \
-})
-#define TGL_RGB3(r_, g_, b_) ((TGLFmt){ .flags = TGL_RGB24, .color.rgb = (TGLRGB){ \
-								    .r = (r_),     \
-								    .g = (g_),     \
-								    .b = (b_),     \
-							    } })
-#define TGL_RGB4(r_, g_, b_, flags_) ((TGLFmt){ .flags = (flags_) | TGL_RGB24, .color.rgb = (TGLRGB){ \
-										       .r = (r_),     \
-										       .g = (g_),     \
-										       .b = (b_),     \
-									       } })
+#define TGL_PIXFMT1(fg_)                                                                           \
+	((TGLPixFmt){                                                                              \
+		.fg = (fg_),                                                                       \
+		.bkg = { 0 },                                                                      \
+	})
+#define TGL_PIXFMT2(fg_, bkg_)                                                                     \
+	((TGLPixFmt){                                                                              \
+		.fg = (fg_),                                                                       \
+		.bkg = (bkg_),                                                                     \
+	})
+#define TGL_IDX1(color_)                                                                           \
+	((TGLFmt){                                                                                 \
+		.color.indexed = (color_),                                                         \
+	})
+#define TGL_IDX2(color_, flags_)                                                                   \
+	((TGLFmt){                                                                                 \
+		.flags = (flags_),                                                                 \
+		.color.indexed = (color_),                                                         \
+	})
+#define TGL_RGB3(r_, g_, b_)                                                                       \
+	((TGLFmt){ .flags = TGL_RGB24,                                                             \
+		.color.rgb = (TGLRGB){                                                             \
+			.r = (r_),                                                                 \
+			.g = (g_),                                                                 \
+			.b = (b_),                                                                 \
+		} })
+#define TGL_RGB4(r_, g_, b_, flags_)                                                               \
+	((TGLFmt){ .flags = (flags_) | TGL_RGB24,                                                  \
+		.color.rgb = (TGLRGB){                                                             \
+			.r = (r_),                                                                 \
+			.g = (g_),                                                                 \
+			.b = (b_),                                                                 \
+		} })
 
 #ifdef __cplusplus
 }

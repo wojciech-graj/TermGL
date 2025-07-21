@@ -38,7 +38,7 @@ The header file `termgl.h` contains brief documentation for all functions and st
 
 ### Demo
 
-A demo program can be found at `demo/termgl_demo.c`.
+A demo program can be found at `termgl_demo.c`.
 
 Available demos and TermGL features used:
 1. Utah Teapot\

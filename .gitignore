@@ -1,3 +1,6 @@
 *.o
 *.so
 *.obj
+.cache/
+termgl_demo
+compile_commands.json

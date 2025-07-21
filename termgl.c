@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024 Wojciech Graj
+ * Copyright (c) 2021-2025 Wojciech Graj
  *
  * Licensed under the MIT license: https://opensource.org/licenses/MIT
  * Permission is granted to use, copy, modify, and redistribute the work.
@@ -8,17 +8,23 @@
 
 #include "termgl.h"
 
-#include <errno.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef TGL_MALLOC
 #define TGL_MALLOC malloc
+#endif
+
+#ifndef TGL_FREE
 #define TGL_FREE free
-#define TGL_CLEAR_SCR                                    \
-	do {                                             \
-		(void)fputs("\033[1;1H\033[2J", stdout); \
+#endif
+
+#define TGL_CLEAR_SCR                                                                              \
+	do {                                                                                       \
+		(void)fputs("\033[1;1H\033[2J", stdout);                                           \
 	} while (0)
 
 #ifdef __GNUC__
@@ -32,12 +38,14 @@
 #endif
 
 #ifdef TGL_OS_WINDOWS
-#define WINDOWS_CALL(cond, retval)              \
-	do {                                    \
-		if (TGL_UNLIKELY(cond)) {       \
-			errno = GetLastError(); \
-			return retval;          \
-		}                               \
+#include <errno.h>
+
+#define WINDOWS_CALL(cond, retval)                                                                 \
+	do {                                                                                       \
+		if (TGL_UNLIKELY(cond)) {                                                          \
+			errno = GetLastError();                                                    \
+			return retval;                                                             \
+		}                                                                                  \
 	} while (0)
 #endif
 
@@ -60,51 +68,56 @@ struct TGL {
 	uint8_t settings;
 };
 
-#define SWAP(typ, a, b)                \
-	do {                           \
-		typ __swap_temp = (a); \
-		(a) = (b);             \
-		(b) = __swap_temp;     \
+#define SWAP(typ, a, b)                                                                            \
+	do {                                                                                       \
+		typ __swap_temp = (a);                                                             \
+		(a) = (b);                                                                         \
+		(b) = __swap_temp;                                                                 \
 	} while (0)
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define XOR(a, b) (((bool)(a)) != ((bool)(b)))
 
-#define SET_PIXEL_RAW(tgl, x, y, v_char_, color_)                            \
-	do {                                                                 \
-		*(&(tgl)->frame_buffer[(y) * (tgl)->width + (x)]) = (Pixel){ \
-			.v_char = (v_char_),                                 \
-			.color = (color_),                                   \
-		};                                                           \
+#define SET_PIXEL_RAW(tgl, x, y, v_char_, color_)                                                  \
+	do {                                                                                       \
+		*(&(tgl)->frame_buffer[(y) * (tgl)->width + (x)]) = (Pixel){                       \
+			.v_char = (v_char_),                                                       \
+			.color = (color_),                                                         \
+		};                                                                                 \
 	} while (0)
 
-#define SET_PIXEL(tgl, x, y, z, u, v, t, data)                                      \
-	do {                                                                        \
-		char __set_pixel_c;                                                 \
-		TGLPixFmt __set_pixel_color;                                        \
-		if (!(tgl)->z_buffer_enabled) {                                     \
-			t(u, v, &__set_pixel_color, &__set_pixel_c, data);          \
-			SET_PIXEL_RAW(tgl, x, y, __set_pixel_c, __set_pixel_color); \
-		} else if ((z) >= (tgl)->z_buffer[(y) * (tgl)->width + (x)]) {      \
-			t(u, v, &__set_pixel_color, &__set_pixel_c, data);          \
-			SET_PIXEL_RAW(tgl, x, y, __set_pixel_c, __set_pixel_color); \
-			(tgl)->z_buffer[(y) * (tgl)->width + (x)] = z;              \
-		}                                                                   \
+#define SET_PIXEL(tgl, x, y, z, u, v, t, data)                                                     \
+	do {                                                                                       \
+		char __set_pixel_c;                                                                \
+		TGLPixFmt __set_pixel_color;                                                       \
+		if (!(tgl)->z_buffer_enabled) {                                                    \
+			t(u, v, &__set_pixel_color, &__set_pixel_c, data);                         \
+			SET_PIXEL_RAW(tgl, x, y, __set_pixel_c, __set_pixel_color);                \
+		} else if ((z) >= (tgl)->z_buffer[(y) * (tgl)->width + (x)]) {                     \
+			t(u, v, &__set_pixel_color, &__set_pixel_c, data);                         \
+			SET_PIXEL_RAW(tgl, x, y, __set_pixel_c, __set_pixel_color);                \
+			(tgl)->z_buffer[(y) * (tgl)->width + (x)] = z;                             \
+		}                                                                                  \
 	} while (0)
 
-#define CALL(stmt, retval)              \
-	do {                            \
-		if (TGL_UNLIKELY(stmt)) \
-			return retval;  \
+#define CALL(stmt, retval)                                                                         \
+	do {                                                                                       \
+		if (TGL_UNLIKELY(stmt))                                                            \
+			return retval;                                                             \
 	} while (0)
 #define CALL_STDOUT(stmt, retval) CALL((stmt) == EOF, retval)
 
 #define MIX(begin, end, d) ((begin) * (d) + (end) * (1 - (d)))
 
-#define RGB_EQ(rgb0, rgb1) (((rgb0).r == (rgb1).r) && ((rgb0).g == (rgb1).g) && ((rgb0).b == (rgb1).b))
-#define COLOR_EQ(color0, color1) (!(((color0).flags ^ (color1).flags) & TGL_RGB24) \
-	&& (((color0).flags & TGL_RGB24) ? (RGB_EQ((color0).color.rgb, (color1).color.rgb)) : ((color0).color.indexed == (color1).color.indexed)))
-#define PIXFMT_EQ(color0, color1) (COLOR_EQ((color0).fg, (color1).fg) && COLOR_EQ((color0).bkg, (color1).bkg))
+#define RGB_EQ(rgb0, rgb1)                                                                         \
+	(((rgb0).r == (rgb1).r) && ((rgb0).g == (rgb1).g) && ((rgb0).b == (rgb1).b))
+#define COLOR_EQ(color0, color1)                                                                   \
+	(!(((color0).flags ^ (color1).flags) & TGL_RGB24)                                          \
+		&& (((color0).flags & TGL_RGB24) ?                                                 \
+				(RGB_EQ((color0).color.rgb, (color1).color.rgb)) :                 \
+				((color0).color.indexed == (color1).color.indexed)))
+#define PIXFMT_EQ(color0, color1)                                                                  \
+	(COLOR_EQ((color0).fg, (color1).fg) && COLOR_EQ((color0).bkg, (color1).bkg))
 
 #ifndef TERMGL_MINIMAL
 const TGLGradient gradient_full = {
@@ -122,10 +135,12 @@ static void itgl_clip(const TGL *tgl, int *x, int *y);
 static inline char *itgl_generate_sgr_rgb_channel(uint8_t val, char *buf);
 static char *itgl_generate_sgr_rgb(TGLRGB rgb, char *buf);
 static char *itgl_generate_sgr(TGLPixFmt color_prev, TGLPixFmt color_cur, char *buf);
-static void itgl_horiz_line(TGL *tgl, int x0, float z0, uint8_t u0, uint8_t v0, int x1, float z1, uint8_t u1, uint8_t v1, int y, TGLPixelShader *t, const void *data);
+static void itgl_horiz_line(TGL *tgl, int x0, float z0, uint8_t u0, uint8_t v0, int x1, float z1,
+	uint8_t u1, uint8_t v1, int y, TGLPixelShader *t, const void *data);
 
 #ifndef TERMGL_MINIMAL
-void tgl_pixel_shader_simple(const uint8_t u, const uint8_t v, TGLPixFmt *const color, char *const c, const void *const data)
+void tgl_pixel_shader_simple(const uint8_t u, const uint8_t v, TGLPixFmt *const color,
+	char *const c, const void *const data)
 {
 	const TGLPixelShaderSimple *const interp = data;
 	*color = interp->color;
@@ -133,7 +148,8 @@ void tgl_pixel_shader_simple(const uint8_t u, const uint8_t v, TGLPixFmt *const 
 	(void)v;
 }
 
-void tgl_pixel_shader_texture(uint8_t u, uint8_t v, TGLPixFmt *const color, char *const c, const void *data)
+void tgl_pixel_shader_texture(
+	uint8_t u, uint8_t v, TGLPixFmt *const color, char *const c, const void *data)
 {
 	const TGLPixelShaderTexture *const shader = data;
 	const unsigned idx = u * shader->width / 256 + shader->width * (v * shader->height / 256);
@@ -143,7 +159,7 @@ void tgl_pixel_shader_texture(uint8_t u, uint8_t v, TGLPixFmt *const color, char
 
 char tgl_grad_char(const TGLGradient *const grad, const uint8_t intensity)
 {
-	return grad->grad[grad->length * intensity / 256u];
+	return grad->grad[grad->length * intensity / 256U];
 }
 #endif /* ~TERMGL_MINIMAL */
 
@@ -185,7 +201,7 @@ void tgl_clear(TGL *const tgl, const uint8_t buffers)
 	}
 	if (buffers & TGL_Z_BUFFER)
 		for (i = 0; i < tgl->frame_size; i++)
-			tgl->z_buffer[i] = -1.f;
+			tgl->z_buffer[i] = -1.F;
 	if (buffers & TGL_OUTPUT_BUFFER)
 		memset(tgl->output_buffer, '\0', tgl->output_buffer_size);
 }
@@ -221,10 +237,10 @@ inline char *itgl_generate_sgr_rgb_channel(const uint8_t val, char *buf)
 	*buf++ = ';';
 	if (val >= 10) {
 		if (val >= 100)
-			*buf++ = (val / 100u) + '0';
-		*buf++ = ((val % 100u) / 10u) + '0';
+			*buf++ = (val / 100U) + '0';
+		*buf++ = ((val % 100U) / 10U) + '0';
 	}
-	*buf++ = (val % 10u) + '0';
+	*buf++ = (val % 10U) + '0';
 	return buf;
 }
 
@@ -345,7 +361,8 @@ int tgl_flush(TGL *const tgl)
 			}
 			for (col = 0; col < tgl->width; col++) {
 				if (!PIXFMT_EQ(color, pixel->color)) {
-					output_buffer_loc = itgl_generate_sgr(color, pixel->color, output_buffer_loc);
+					output_buffer_loc = itgl_generate_sgr(
+						color, pixel->color, output_buffer_loc);
 					color = pixel->color;
 				}
 				*output_buffer_loc++ = pixel->v_char;
@@ -415,7 +432,8 @@ void tgl_point(TGL *const tgl, TGLVert v0, TGLPixelShader *const t, const void *
 }
 
 /* Bresenham's line algorithm */
-void tgl_line(TGL *const tgl, TGLVert v0, TGLVert v1, TGLPixelShader *const t, const void *const data)
+void tgl_line(
+	TGL *const tgl, TGLVert v0, TGLVert v1, TGLPixelShader *const t, const void *const data)
 {
 	itgl_clip(tgl, &v0.x, &v0.y);
 	itgl_clip(tgl, &v1.x, &v1.y);
@@ -436,11 +454,9 @@ void tgl_line(TGL *const tgl, TGLVert v0, TGLVert v1, TGLPixelShader *const t, c
 		int y = v0.y;
 		int x;
 		for (x = v0.x; x <= v1.x; x++) {
-			SET_PIXEL(tgl, x, y,
-				((x - v0.x) * v1.z + (v0.x - x) * v1.z) / dx,
+			SET_PIXEL(tgl, x, y, ((x - v0.x) * v1.z + (v0.x - x) * v1.z) / dx,
 				((x - v0.x) * v1.u + (v1.x - x) * v0.u) / dx,
-				((x - v0.x) * v1.v + (v1.x - x) * v0.v) / dx,
-				t, data);
+				((x - v0.x) * v1.v + (v1.x - x) * v0.v) / dx, t, data);
 			if (d > 0) {
 				y += yi;
 				d += 2 * (dy - dx);
@@ -465,11 +481,9 @@ void tgl_line(TGL *const tgl, TGLVert v0, TGLVert v1, TGLPixelShader *const t, c
 		int x = v0.x;
 		int y;
 		for (y = v0.y; y <= v1.y; y++) {
-			SET_PIXEL(tgl, x, y,
-				((y - v0.y) * v1.z + (v1.y - y) * v0.z) / dx,
+			SET_PIXEL(tgl, x, y, ((y - v0.y) * v1.z + (v1.y - y) * v0.z) / dx,
 				((y - v0.y) * v1.u + (v1.y - y) * v0.u) / dy,
-				((y - v0.y) * v1.v + (v1.y - y) * v0.v) / dy,
-				t, data);
+				((y - v0.y) * v1.v + (v1.y - y) * v0.v) / dy, t, data);
 			if (d > 0) {
 				x += xi;
 				d += 2 * (dx - dy);
@@ -480,14 +494,17 @@ void tgl_line(TGL *const tgl, TGLVert v0, TGLVert v1, TGLPixelShader *const t, c
 	}
 }
 
-void tgl_triangle(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *const t, const void *data)
+void tgl_triangle(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *const t,
+	const void *data)
 {
 	tgl_line(tgl, v0, v1, t, data);
 	tgl_line(tgl, v0, v2, t, data);
 	tgl_line(tgl, v1, v2, t, data);
 }
 
-void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t u0, const uint8_t v0, const int x1, const float z1, const uint8_t u1, const uint8_t v1, const int y, TGLPixelShader *t, const void *const data)
+void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t u0,
+	const uint8_t v0, const int x1, const float z1, const uint8_t u1, const uint8_t v1,
+	const int y, TGLPixelShader *t, const void *const data)
 {
 	if (x0 == x1) {
 		SET_PIXEL(tgl, x0, y, z0, u0, v0, t, data);
@@ -495,11 +512,9 @@ void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t
 		const int dx = x1 - x0;
 		int x;
 		for (x = x0; x <= x1; x++) {
-			SET_PIXEL(tgl, x, y,
-				((x - x0) * z1 + (x1 - x) * z0) / dx,
+			SET_PIXEL(tgl, x, y, ((x - x0) * z1 + (x1 - x) * z0) / dx,
 				((x - x0) * u1 + (x1 - x) * u0) / dx,
-				((x - x0) * v1 + (x1 - x) * v0) / dx,
-				t, data);
+				((x - x0) * v1 + (x1 - x) * v0) / dx, t, data);
 		}
 	}
 }
@@ -507,7 +522,8 @@ void itgl_horiz_line(TGL *const tgl, const int x0, const float z0, const uint8_t
 /* Solution based on Bresenham's line algorithm
  * adapted from: https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h
  **/
-void tgl_triangle_fill(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *const t, const void *data)
+void tgl_triangle_fill(TGL *const tgl, TGLVert v0, TGLVert v1, TGLVert v2, TGLPixelShader *const t,
+	const void *data)
 {
 	itgl_clip(tgl, &v0.x, &v0.y);
 	itgl_clip(tgl, &v1.x, &v1.y);
@@ -707,11 +723,14 @@ LBL_NEXT:
 			const float vz1 = ((y - v1.y) * v2.z + (v2.y - y) * v1.z) / (v2.y - v1.y);
 
 			if (t1x < t0x)
-				itgl_horiz_line(tgl, minx, vz0, vu0, vv0, maxx, vz1, vu1, vv1, y, t, data);
+				itgl_horiz_line(
+					tgl, minx, vz0, vu0, vv0, maxx, vz1, vu1, vv1, y, t, data);
 			else
-				itgl_horiz_line(tgl, minx, vz1, vu1, vv1, maxx, vz0, vu0, vv0, y, t, data);
+				itgl_horiz_line(
+					tgl, minx, vz1, vu1, vv1, maxx, vz0, vu0, vv0, y, t, data);
 		} else {
-			itgl_horiz_line(tgl, minx, v1.z, v1.u, v1.v, maxx, v2.z, v2.u, v2.v, y, t, data);
+			itgl_horiz_line(
+				tgl, minx, v1.z, v1.u, v1.v, maxx, v2.z, v2.u, v2.v, y, t, data);
 		}
 
 		if (!changed0)
@@ -746,7 +765,7 @@ int tgl_enable(TGL *const tgl, const uint8_t settings)
 		 * {SGR clear code: \033[0m } OR {SGR set cursor position code: \033[;H } (length 4) at start
 		 * 1 NUL terminator
 		 */
-		tgl->output_buffer_size = 44u * tgl->frame_size + tgl->height * 4u + 4u + 1u;
+		tgl->output_buffer_size = 44U * tgl->frame_size + tgl->height * 4U + 4U + 1U;
 		tgl->output_buffer = TGL_MALLOC(tgl->output_buffer_size);
 		if (!tgl->output_buffer)
 			return -1;
@@ -787,36 +806,39 @@ void tgl_delete(TGL *const tgl)
 
 #define MAP_COORD(half, val) (((val) * (half)) + (half))
 
-#define TGL_ROTATION_MATRIX(x, y, z)                                                                                                                   \
-	{                                                                                                                                              \
-		{ cosf(z) * cosf(y), -sinf(z) * cosf(x) + cosf(z) * sinf(y) * sinf(x), sinf(z) * sinf(x) + cosf(z) * sinf(y) * cosf(x), 0.f },         \
-			{ sinf(z) * cosf(y), cosf(z) * cosf(x) + sinf(z) * sinf(y) * sinf(x), -cosf(z) * sinf(x) + sinf(z) * sinf(y) * cosf(x), 0.f }, \
-			{ -sinf(y), cosf(y) * sinf(x), cosf(y) * cosf(x), 0.f },                                                                       \
-			{ 0.f, 0.f, 0.f, 1.f },                                                                                                        \
+#define TGL_ROTATION_MATRIX(x, y, z)                                                               \
+	{                                                                                          \
+		{ cosf(z) * cosf(y), -sinf(z) * cosf(x) + cosf(z) * sinf(y) * sinf(x),             \
+			sinf(z) * sinf(x) + cosf(z) * sinf(y) * cosf(x), 0.f },                    \
+		{ sinf(z) * cosf(y), cosf(z) * cosf(x) + sinf(z) * sinf(y) * sinf(x),              \
+			-cosf(z) * sinf(x) + sinf(z) * sinf(y) * cosf(x), 0.f },                   \
+		{ -sinf(y), cosf(y) * sinf(x), cosf(y) * cosf(x), 0.f },                           \
+		{ 0.f, 0.f, 0.f, 1.f },                                                            \
 	}
 
-#define TGL_SCALE_MATRIX(x, y, z)               \
-	{                                       \
-		{ x, 0.f, 0.f, 0.f },           \
-			{ 0.f, y, 0.f, 0.f },   \
-			{ 0.f, 0.f, z, 0.f },   \
-			{ 0.f, 0.f, 0.f, 1.f }, \
+#define TGL_SCALE_MATRIX(x, y, z)                                                                  \
+	{                                                                                          \
+		{ x, 0.f, 0.f, 0.f },                                                              \
+		{ 0.f, y, 0.f, 0.f },                                                              \
+		{ 0.f, 0.f, z, 0.f },                                                              \
+		{ 0.f, 0.f, 0.f, 1.f },                                                            \
 	}
 
-#define TGL_TRANSLATE_MATRIX(x, y, z)           \
-	{                                       \
-		{ 1.f, 0.f, 0.f, x },           \
-			{ 0.f, 1.f, 0.f, y },   \
-			{ 0.f, 0.f, 1.f, z },   \
-			{ 0.f, 0.f, 0.f, 1.f }, \
+#define TGL_TRANSLATE_MATRIX(x, y, z)                                                              \
+	{                                                                                          \
+		{ 1.f, 0.f, 0.f, x },                                                              \
+		{ 0.f, 1.f, 0.f, y },                                                              \
+		{ 0.f, 0.f, 1.f, z },                                                              \
+		{ 0.f, 0.f, 0.f, 1.f },                                                            \
 	}
 
-#define TGL_CAMERA_MATRIX(width, height, fov, near_val, far_val)                                                                                     \
-	{                                                                                                                                            \
-		{ (height) / (float)(width) / tanf((fov)*.5f), 0.f, 0.f, 0.f },                                                                      \
-			{ 0.f, 1.f / tanf((fov)*.5f), 0.f, 0.f },                                                                                    \
-			{ 0.f, 0.f, -((far_val) + (near_val)) / ((far_val) - (near_val)), 2.f * (far_val) * (near_val) / ((far_val) - (near_val)) }, \
-			{ 0.f, 0.f, 1.f, 0.f },                                                                                                      \
+#define TGL_CAMERA_MATRIX(width, height, fov, near_val, far_val)                                   \
+	{                                                                                          \
+		{ (height) / (float)(width) / tanf((fov) * .5f), 0.f, 0.f, 0.f },                  \
+		{ 0.f, 1.f / tanf((fov) * .5f), 0.f, 0.f },                                        \
+		{ 0.f, 0.f, -((far_val) + (near_val)) / ((far_val) - (near_val)),                  \
+			2.f * (far_val) * (near_val) / ((far_val) - (near_val)) },                 \
+		{ 0.f, 0.f, 1.f, 0.f },                                                            \
 	}
 
 enum ClipPlane {
@@ -833,8 +855,10 @@ typedef struct TGLUVTriangle {
 	uint8_t uv[3][2];
 } TGLUVTriangle;
 
-static void itgl_clip_line(float dot_i, const TGLVec4 vec_i, const uint8_t uv_i[2], float dot_o, const TGLVec4 vec_o, const uint8_t uv_o[2], TGLVec4 vec_out, uint8_t uv_out[2]);
-static unsigned itgl_clip_triangle_plane(enum ClipPlane plane, const TGLUVTriangle *in, TGLUVTriangle *out);
+static void itgl_clip_line(float dot_i, const TGLVec4 vec_i, const uint8_t uv_i[2], float dot_o,
+	const TGLVec4 vec_o, const uint8_t uv_o[2], TGLVec4 vec_out, uint8_t uv_out[2]);
+static unsigned itgl_clip_triangle_plane(
+	enum ClipPlane plane, const TGLUVTriangle *in, TGLUVTriangle *out);
 static float itgl_clip_plane_dot(const TGLVec4 v, enum ClipPlane plane);
 
 #ifndef TERMGL_MINIMAL
@@ -933,7 +957,8 @@ void tgl_vertex_shader_simple(const TGLVec3 vert, TGLVec4 out, const void *const
 	tgl_mulmatvec(simple->mat, vert, out);
 }
 
-void tgl_camera(TGLMat camera, const int width, const int height, const float fov, const float near_val, const float far_val)
+void tgl_camera(TGLMat camera, const int width, const int height, const float fov,
+	const float near_val, const float far_val)
 {
 	TGLMat projection = TGL_CAMERA_MATRIX(width, height, fov, near_val, far_val);
 	memcpy(camera, projection, sizeof(TGLMat));
@@ -979,7 +1004,9 @@ void tgl_cross(const float vec1[3], const float vec2[3], float res[3])
 	res[2] = vec1[0] * vec2[1] - vec1[1] * vec2[0];
 }
 
-void itgl_clip_line(const float dot_i, const TGLVec4 vec_i, const uint8_t uv_i[2], const float dot_o, const TGLVec4 vec_o, const uint8_t uv_o[2], TGLVec4 vec_out, uint8_t uv_out[2])
+void itgl_clip_line(const float dot_i, const TGLVec4 vec_i, const uint8_t uv_i[2],
+	const float dot_o, const TGLVec4 vec_o, const uint8_t uv_o[2], TGLVec4 vec_out,
+	uint8_t uv_out[2])
 {
 	const float d = dot_i / (dot_i - dot_o);
 	vec_out[0] = MIX(vec_o[0], vec_i[0], d);
@@ -1011,7 +1038,8 @@ float itgl_clip_plane_dot(const TGLVec4 v, const enum ClipPlane plane)
 	}
 }
 
-unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, const TGLUVTriangle *const in, TGLUVTriangle *const out)
+unsigned itgl_clip_triangle_plane(
+	const enum ClipPlane plane, const TGLUVTriangle *const in, TGLUVTriangle *const out)
 {
 	unsigned n_inside = 0, n_outside = 0;
 	unsigned inside[3], outside[3];
@@ -1031,21 +1059,29 @@ unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, const TGLUVTriangl
 	case 1:
 		memcpy(out[0].verts[0], in->verts[inside[0]], sizeof(TGLUVTriangle));
 		memcpy(out[0].uv[0], in->uv[inside[0]], sizeof(uint8_t[2]));
-		itgl_clip_line(dps[inside[0]], in->verts[inside[0]], in->uv[inside[0]], dps[outside[0]], in->verts[outside[0]], in->uv[outside[0]], out[0].verts[1], out[0].uv[1]);
-		itgl_clip_line(dps[inside[0]], in->verts[inside[0]], in->uv[inside[0]], dps[outside[1]], in->verts[outside[1]], in->uv[outside[1]], out[0].verts[2], out[0].uv[2]);
+		itgl_clip_line(dps[inside[0]], in->verts[inside[0]], in->uv[inside[0]],
+			dps[outside[0]], in->verts[outside[0]], in->uv[outside[0]], out[0].verts[1],
+			out[0].uv[1]);
+		itgl_clip_line(dps[inside[0]], in->verts[inside[0]], in->uv[inside[0]],
+			dps[outside[1]], in->verts[outside[1]], in->uv[outside[1]], out[0].verts[2],
+			out[0].uv[2]);
 		return 1;
 	case 2:
 		memcpy(out[0].verts[0], in->verts[inside[0]], sizeof(TGLVec4));
 		memcpy(out[0].uv[0], in->uv[inside[0]], sizeof(uint8_t[2]));
 		memcpy(out[0].verts[1], in->verts[inside[1]], sizeof(TGLVec4));
 		memcpy(out[0].uv[1], in->uv[inside[1]], sizeof(uint8_t[2]));
-		itgl_clip_line(dps[inside[0]], in->verts[inside[0]], in->uv[inside[0]], dps[outside[0]], in->verts[outside[0]], in->uv[outside[0]], out[0].verts[2], out[0].uv[2]);
+		itgl_clip_line(dps[inside[0]], in->verts[inside[0]], in->uv[inside[0]],
+			dps[outside[0]], in->verts[outside[0]], in->uv[outside[0]], out[0].verts[2],
+			out[0].uv[2]);
 
 		memcpy(out[1].verts[0], in->verts[inside[1]], sizeof(TGLVec4));
 		memcpy(out[1].uv[0], in->uv[inside[1]], sizeof(uint8_t[2]));
 		memcpy(out[1].verts[1], out[0].verts[2], sizeof(TGLVec4));
 		memcpy(out[1].uv[1], out[0].uv[2], sizeof(uint8_t[2]));
-		itgl_clip_line(dps[inside[1]], in->verts[inside[1]], in->uv[inside[1]], dps[outside[0]], in->verts[outside[0]], in->uv[outside[0]], out[1].verts[2], out[1].uv[2]);
+		itgl_clip_line(dps[inside[1]], in->verts[inside[1]], in->uv[inside[1]],
+			dps[outside[0]], in->verts[outside[0]], in->uv[outside[0]], out[1].verts[2],
+			out[1].uv[2]);
 
 		return 2;
 	case 3:
@@ -1057,7 +1093,9 @@ unsigned itgl_clip_triangle_plane(const enum ClipPlane plane, const TGLUVTriangl
 	}
 }
 
-void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const uv)[2], const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data, TGLPixelShader *frag_shader, const void *const frag_data)
+void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const uv)[2],
+	const bool fill, TGLVertexShader *const vert_shader, const void *const vert_data,
+	TGLPixelShader *frag_shader, const void *const frag_data)
 {
 	/* Vertex shader */
 	TGLVec4 verts[3];
@@ -1079,7 +1117,8 @@ void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const
 	}
 
 	/* Clipping */
-	TGLUVTriangle trig_buffer[127]; /* the size of this buffer assumes a pathological case which is probably impossible */
+	TGLUVTriangle trig_buffer
+		[127]; /* the size of this buffer assumes a pathological case which is probably impossible */
 	memcpy(&(trig_buffer[0].verts), verts, sizeof(TGLVec4[3]));
 	memcpy(&(trig_buffer[0].uv), uv, sizeof(uint8_t[3][2]));
 	unsigned buffer_offset = 0;
@@ -1088,7 +1127,8 @@ void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const
 	for (p = 0; p < 6; p++) {
 		unsigned n_next_stage = 0;
 		for (i = 0; i < n_cur_stage; i++) {
-			n_next_stage += itgl_clip_triangle_plane(p, &trig_buffer[i + buffer_offset], &trig_buffer[buffer_offset + n_cur_stage + n_next_stage]);
+			n_next_stage += itgl_clip_triangle_plane(p, &trig_buffer[i + buffer_offset],
+				&trig_buffer[buffer_offset + n_cur_stage + n_next_stage]);
 		}
 		buffer_offset += n_cur_stage;
 		n_cur_stage = n_next_stage;
@@ -1102,7 +1142,8 @@ void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const
 		TGLVec3 v[3];
 		unsigned j;
 		for (j = 0; j < 3; j++)
-			tgl_mul3s(trig_buffer[i + buffer_offset].verts[j], 1.f / trig_buffer[i + buffer_offset].verts[j][3], v[j]);
+			tgl_mul3s(trig_buffer[i + buffer_offset].verts[j],
+				1.f / trig_buffer[i + buffer_offset].verts[j][3], v[j]);
 
 		if (fill)
 			tgl_triangle_fill(tgl,
@@ -1127,8 +1168,7 @@ void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const
 					.u = trig_buffer[i + buffer_offset].uv[2][0],
 					.v = trig_buffer[i + buffer_offset].uv[2][1],
 				},
-				frag_shader,
-				frag_data);
+				frag_shader, frag_data);
 		else
 			tgl_triangle(tgl,
 				(TGLVert){
@@ -1152,14 +1192,15 @@ void tgl_triangle_3d(TGL *const tgl, const TGLTriangle in, const uint8_t (*const
 					.u = trig_buffer[i + buffer_offset].uv[2][0],
 					.v = trig_buffer[i + buffer_offset].uv[2][1],
 				},
-				frag_shader,
-				frag_data);
+				frag_shader, frag_data);
 	}
 }
 
 void tgl_cull_face(TGL *const tgl, const uint8_t settings)
 {
-	tgl->settings = (tgl->settings & ~TGL_CULL_BIT) | (XOR(settings & TGL_CULL_FACE_BIT, settings & TGL_WINDING_BIT) ? TGL_CULL_BIT : 0);
+	tgl->settings = (tgl->settings & ~TGL_CULL_BIT)
+		| (XOR(settings & TGL_CULL_FACE_BIT, settings & TGL_WINDING_BIT) ? TGL_CULL_BIT :
+										   0);
 }
 
 #endif /* TERMGL3D */
@@ -1194,9 +1235,11 @@ inline uint8_t itgl_xterm_button_conv(const uint8_t button)
 #endif /* __unix__ */
 
 #ifdef TGL_OS_WINDOWS
-static inline uint8_t itgl_windows_mouse_event_record_conv(MOUSE_EVENT_RECORD record, uint8_t *state);
+static inline uint8_t itgl_windows_mouse_event_record_conv(
+	MOUSE_EVENT_RECORD record, uint8_t *state);
 
-inline uint8_t itgl_windows_mouse_event_record_conv(const MOUSE_EVENT_RECORD record, uint8_t *const state)
+inline uint8_t itgl_windows_mouse_event_record_conv(
+	const MOUSE_EVENT_RECORD record, uint8_t *const state)
 {
 	if (record.dwEventFlags & (MOUSE_WHEELED | 0x0008 | MOUSE_MOVED))
 		return TGL_MOUSE_WHEEL_OR_MOVEMENT | TGL_MOUSE_UNKNOWN;
@@ -1216,7 +1259,8 @@ inline uint8_t itgl_windows_mouse_event_record_conv(const MOUSE_EVENT_RECORD rec
 }
 #endif /* TGL_OS_WINDOWS */
 
-TGL_SSIZE_T tglutil_read(char *const buf, const size_t count, TGLMouseEvent *const event_buf, const size_t count_events, size_t *const count_read_events)
+TGL_SSIZE_T tglutil_read(char *const buf, const size_t count, TGLMouseEvent *const event_buf,
+	const size_t count_events, size_t *const count_read_events)
 {
 #ifdef __unix__
 	struct termios oldt, newt;
@@ -1288,14 +1332,19 @@ TGL_SSIZE_T tglutil_read(char *const buf, const size_t count, TGLMouseEvent *con
 			switch (input_records[i].EventType) {
 			case KEY_EVENT:
 				if (input_records[i].Event.KeyEvent.bKeyDown && retval < count)
-					buf[retval++] = input_records[i].Event.KeyEvent.uChar.AsciiChar;
+					buf[retval++] =
+						input_records[i].Event.KeyEvent.uChar.AsciiChar;
 				break;
 			case MOUSE_EVENT:
 				if (event_buf && *count_read_events < count_events)
 					event_buf[(*count_read_events)++] = (TGLMouseEvent){
-						.button = itgl_windows_mouse_event_record_conv(input_records[i].Event.MouseEvent, &mouse_state),
-						.x = input_records[i].Event.MouseEvent.dwMousePosition.X,
-						.y = input_records[i].Event.MouseEvent.dwMousePosition.Y,
+						.button = itgl_windows_mouse_event_record_conv(
+							input_records[i].Event.MouseEvent,
+							&mouse_state),
+						.x = input_records[i]
+							.Event.MouseEvent.dwMousePosition.X,
+						.y = input_records[i]
+							.Event.MouseEvent.dwMousePosition.Y,
 					};
 			}
 		}
