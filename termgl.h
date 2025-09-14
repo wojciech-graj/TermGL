@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #define TGL_VERSION_MAJOR 1
-#define TGL_VERSION_MINOR 5
+#define TGL_VERSION_MINOR 6
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -151,8 +151,8 @@ typedef struct TGLPixelShaderTexture {
 	const TGLPixFmt *colors;
 } TGLPixelShaderTexture;
 
-extern const TGLGradient gradient_full;
-extern const TGLGradient gradient_min;
+extern const TGLGradient tgl_gradient_full;
+extern const TGLGradient tgl_gradient_min;
 
 /**
  * Pixel shader that maps u+v onto a TGLGradient and has fixed color
@@ -214,8 +214,10 @@ void tgl_clear(TGL *tgl, uint8_t buffers);
 
 /**
  * Clears the screen
+ * @return 0 on success, -1 on failure
+ * On failure, errno is set to value specified by: https://man7.org/linux/man-pages/man3/fputc.3p.html#ERRORS
  */
-void tgl_clear_screen(void);
+int tgl_clear_screen(void);
 
 /**
  * Enables or disables certain settings

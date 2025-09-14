@@ -94,7 +94,7 @@ void teapot_pixel_shader(const uint8_t u, const uint8_t v, TGLPixFmt *const colo
 		light_mul =
 			acosf(dp / (tgl_mag3(cp) * tgl_mag3(light_direction))) / -3.14159F + 1.F;
 	*color = TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD));
-	*c = tgl_grad_char(&gradient_min, light_mul * 255);
+	*c = tgl_grad_char(&tgl_gradient_min, light_mul * 255);
 	(void)u;
 	(void)v;
 }
@@ -175,7 +175,7 @@ void demo_mandelbrot(const unsigned res_x, const unsigned res_y, const unsigned 
 				}
 				if (i < i_max) // Set pixel with intensity dependent on i
 					tgl_putchar(tgl, pix_x, pix_y,
-						tgl_grad_char(&gradient_full, i * 255U / i_max),
+						tgl_grad_char(&tgl_gradient_full, i * 255U / i_max),
 						TGL_PIXFMT(TGL_IDX(TGL_WHITE, TGL_BOLD)));
 				x += dx;
 			}
@@ -218,7 +218,7 @@ void demo_teapot(const unsigned res_x, const unsigned res_y, const unsigned fram
 
 	// Load triangles
 	TGLTriangle *trigs;
-	FILE *const stl_file = fopen("demo/utah_teapot.stl", "rb");
+	FILE *const stl_file = fopen("utah_teapot.stl", "rb");
 	assert(stl_file);
 	const uint32_t n_trigs = stl_load(stl_file, &trigs);
 	assert(!fclose(stl_file));
@@ -384,246 +384,8 @@ static void demo_texture(const unsigned res_x, const unsigned res_y, const unsig
 		TGL_DOUBLE_CHARS | TGL_CULL_FACE | TGL_Z_BUFFER | TGL_OUTPUT_BUFFER
 			| TGL_PROGRESSIVE));
 
-	// Triangle vertices for cube faces
-	const TGLTriangle trigs[] = {
-		{
-			{
-				0,
-				0,
-				0,
-			},
-			{
-				0,
-				1,
-				0,
-			},
-			{
-				1,
-				0,
-				0,
-			},
-		},
-		{
-			{
-				0,
-				1,
-				0,
-			},
-			{
-				1,
-				1,
-				0,
-			},
-			{
-				1,
-				0,
-				0,
-			},
-		},
-		{
-			{
-				0,
-				0,
-				0,
-			},
-			{
-				1,
-				0,
-				0,
-			},
-			{
-				0,
-				0,
-				1,
-			},
-		},
-		{
-			{
-				1,
-				0,
-				0,
-			},
-			{
-				1,
-				0,
-				1,
-			},
-			{
-				0,
-				0,
-				1,
-			},
-		},
-		{
-			{
-				0,
-				0,
-				0,
-			},
-			{
-				0,
-				0,
-				1,
-			},
-			{
-				0,
-				1,
-				0,
-			},
-		},
-		{
-
-			{
-				0,
-				0,
-				1,
-			},
-			{
-				0,
-				1,
-				1,
-			},
-			{
-				0,
-				1,
-				0,
-			},
-		},
-		{
-			{
-				0,
-				0,
-				1,
-			},
-			{
-				1,
-				0,
-				1,
-			},
-			{
-				0,
-				1,
-				1,
-			},
-		},
-		{
-			{
-				1,
-				0,
-				1,
-			},
-			{
-				1,
-				1,
-				1,
-			},
-			{
-				0,
-				1,
-				1,
-			},
-		},
-		{
-			{
-				0,
-				1,
-				0,
-			},
-			{
-				0,
-				1,
-				1,
-			},
-			{
-				1,
-				1,
-				0,
-			},
-		},
-		{
-			{
-				0,
-				1,
-				1,
-			},
-			{
-				1,
-				1,
-				1,
-			},
-			{
-				1,
-				1,
-				0,
-			},
-		},
-		{
-			{
-				1,
-				0,
-				0,
-			},
-			{
-				1,
-				1,
-				0,
-			},
-			{
-				1,
-				0,
-				1,
-			},
-		},
-		{
-			{
-				1,
-				1,
-				0,
-			},
-			{
-				1,
-				1,
-				1,
-			},
-			{
-				1,
-				0,
-				1,
-			},
-
-		},
-	};
-
-	const uint8_t uvs[][3][2] = {
-		{
-			{
-				0,
-				0,
-			},
-			{
-				0,
-				255,
-			},
-			{
-				255,
-				0,
-			},
-		},
-		{
-			{
-				0,
-				255,
-			},
-			{
-				255,
-				255,
-			},
-			{
-				255,
-				0,
-			},
-		},
-	};
+// Define vertices and texture
+#include "demo_texture_data.c"
 
 	// Create transformation matrices
 	TGLVertexShaderSimple vertex_shader_data;

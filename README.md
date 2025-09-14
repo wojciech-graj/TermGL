@@ -7,7 +7,7 @@ Features:
 - C99 compliant without external dependencies
 - Custom vertex and pixel shaders
 - Affine texture mapping
-- 24 bit RGB
+- 24 bit RGB mode
 - Indexed color mode: 16 Background colors, 16 foreground colors, bold and underline
 - Non-blocking input from terminal
 - Mouse tracking
@@ -20,6 +20,10 @@ Features:
 
 ![CANYON](https://w-graj.net/images/termgl/canyon.gif)
 
+### Documentation
+
+A tutorial can be found [here](./TUTORIAL.md). Additionally, please reference the [demo](./termgl_demo.c), and read the function documentation in [`termgl.h`](./termgl.h) for more details.
+
 ### Build
 
 You can compile `termgl.c` as you would any other C source file. You can also compile it as a shared library `libtermgl.so` by calling `make shared`. To install the shared library, `sudo make install`.
@@ -31,10 +35,6 @@ To disable helper functions for vector math and shaders, define `TERMGL_MINIMAL`
 To use TermGL in C++, compile it as a shared library and link against the `libtermgl.so` file. The `termgl.h` header can be included from C++ files.
 
 To compile a demo program, run  `make demo`, creating the `termgl_demo` binary.
-
-### Documentation
-
-The header file `termgl.h` contains brief documentation for all functions and structs. The TermGLUtil extension contains functions for reading keyboard input, but requires either Windows or *NIX headers.
 
 ### Demo
 
