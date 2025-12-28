@@ -121,7 +121,7 @@ tgl_delete(tgl);
 
 3D rendering can be performed through the `tgl_triangle_3d` function.
 
-To only draw triangles from one side, you should enable `Setting.CULL_FACE`, and call `cull_face` to specify which faces you wish to cull.
+To only draw triangles from one side, you should enable `TGL_CULL_FACE`, and call `tgl_cull_face` to specify which faces you wish to cull.
 
 ## Mouse, Keyboard, and Utilities
 
